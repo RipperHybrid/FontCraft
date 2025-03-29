@@ -54,5 +54,6 @@ Developed by **AshBorn** – [@Ripper_Hybrid](https://t.me/Ripper_Hybrid)
 ### 🔗 Credits  
 - **jq Binary** – [jqlang/jq](https://github.com/jqlang/jq)  
 - **MMT Extended Utility Functions** – [Zackptg5/MMT-Extended](https://github.com/Zackptg5/MMT-Extended)
+- **Banner By** – [Adi](https://t.me/adiLohar) - [Banner Channel](https://t.me/WDableuW)
 
 ⚠️ **Use at your own risk.** Backup your system before making changes.
