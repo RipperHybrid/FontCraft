@@ -1,6 +1,14 @@
 # FontCraft Pro  
 
-Stylish fonts & emojis for a personalized experience.  
+<div align="center">
+  <img src="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/.github/resources/banner.png" width="80%" alt="Banner">
+</div>
+
+<div style="text-align: center; margin-left: 90px;"> 
+  <a href="https://git.io/typing-svg">
+    <img src="https://readme-typing-svg.demolab.com?font=Orbitron&weight=600&size=18&duration=3000&pause=1000&color=A753F7&vCenter=true&width=450&lines=Stylish+fonts+and+emojis+for;A+personalized+experience." alt="Typing SVG">
+  </a>
+</div>
 
 ## 🚀 Features  
 - Dynamic font & emoji selection  
