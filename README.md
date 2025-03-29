@@ -1,14 +1,10 @@
 # FontCraft Pro  
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/.github/resources/banner.png" width="80%" alt="Banner">
+  <img src="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/.github/resources/banner.png" width="60%" alt="Banner">
 </div>
 
-<div style="text-align: center; margin-left: 90px;"> 
-  <a href="https://git.io/typing-svg">
-    <img src="https://readme-typing-svg.demolab.com?font=Orbitron&weight=600&size=18&duration=3000&pause=1000&color=A753F7&vCenter=true&width=450&lines=Stylish+fonts+and+emojis+for;A+personalized+experience." alt="Typing SVG">
-  </a>
-</div>
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Orbitron&weight=500&pause=700&color=41F791&center=true&vCenter=true&width=935&height=70&lines=Stylish+fonts+%26+emojis+for;A+personalized+experience.)](https://git.io/typing-svg)
 
 ## 🚀 Features  
 - Dynamic font & emoji selection  
