@@ -38,6 +38,7 @@ install_font() {
             exit 1
         }
         echo "   >[Successfully installed emoji font as NotoColorEmoji.ttf]< "
+        mka_postfs
     elif [ "$font_name" = "Fonts" ]; then
         echo "   >[Renaming and installing font...]< "
         ttf_file=$(find "$font_path" -type f -name '*.ttf' | head -n 1)
@@ -121,28 +122,33 @@ extract_info() {
 }
 
 mka_postfs() {
-cat > "$MODPATH/post-fs-data.sh" << EOF
+cat > "$MODPATH/post-fs-data.sh" << 'EOF'
 #!/system/bin/sh
 
-MODPATH="\${0%/*}"
+MODPATH="${0%/*}"
 
 update_system_folder() {
-    local system_folder="\$MODPATH/system"
-    local new_system_folder="\$MODPATH/new_system"
-    local post_fs_data_file="\$MODPATH/post-fs-data.sh"
+    local system_folder="$MODPATH/system"
+    local new_system_folder="$MODPATH/new_system"
     
-    if [ -d "\$system_folder" ]; then
-        rm -rf "\$system_folder"
+    if [ -d "$system_folder" ]; then
+        rm -rf "$system_folder"
     fi
 
-    if [ -d "\$new_system_folder" ]; then
-        mv "\$new_system_folder" "\$system_folder"
-        find "\$system_folder" -type f -exec chmod 644 {} \;
-        rm -f "\$post_fs_data_file"
+    if [ -d "$new_system_folder" ]; then
+        mv "$new_system_folder" "$system_folder"
+        find "$system_folder" -type f -exec chmod 644 {} \;
     fi
 }
 
 update_system_folder
+
+EMOJI_FONT="$MODPATH/system/fonts/NotoColorEmoji.ttf"
+if [ -f "$EMOJI_FONT" ]; then
+    mount --bind "$EMOJI_FONT" /system/fonts/NotoColorEmoji.ttf
+fi
+
+rm -f "$MODPATH/post-fs-data.sh"
 
 EOF
 }
