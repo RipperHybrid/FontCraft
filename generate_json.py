@@ -13,16 +13,18 @@ allowed_extensions = {".ttf", ".otf"}
 
 preview_content = "## Emojis and Fonts Images\n\n"
 
-for category in ["Emoji", "Fonts"]:
+categories = ["Emoji", "Fonts"]
+
+for category in sorted(categories):
     category_path = os.path.join(REPO_DIR, category)
     if os.path.isdir(category_path):
         data[category] = {}
         logging.info(f"Processing category: {category}")
-        for folder in os.listdir(category_path):
+        for folder in sorted(os.listdir(category_path), key=str.lower):
             folder_path = os.path.join(category_path, folder)
             if os.path.isdir(folder_path):
                 files = [
-                    f for f in os.listdir(folder_path)
+                    f for f in sorted(os.listdir(folder_path), key=str.lower)
                     if os.path.isfile(os.path.join(folder_path, f)) and f.endswith(tuple(allowed_extensions))
                 ]
                 if files:
@@ -31,7 +33,10 @@ for category in ["Emoji", "Fonts"]:
                 else:
                     logging.info(f"No valid font files found in folder: {folder}")
                 
-                png_files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f)) and f.endswith(".png")]
+                png_files = [
+                    f for f in sorted(os.listdir(folder_path), key=str.lower)
+                    if os.path.isfile(os.path.join(folder_path, f)) and f.endswith(".png")
+                ]
                 if png_files:
                     preview_content += f"### {folder}\n"
                     for png in png_files:
