@@ -6,8 +6,8 @@ JSON_PATH="$TMPDIR/fonts.json"
 both=false
 
 select_item() { 
-    ui_print "###########################" 
-    ui_print "- Select An Item" 
+    logger "###########################" 
+    logger "- Select An Item" 
     
     selected_item="" 
     IFS="," 
@@ -16,7 +16,7 @@ select_item() {
 
     for item; do
         item=$(echo "$item" | sed 's/^ *//;s/ *$//')
-        ui_print "   >[$item]< "
+        logger "   >[$item]< "
         if $VKSEL; then
             selected_item="$item"
             break
@@ -24,18 +24,18 @@ select_item() {
     done  
 
     if [ -z "$selected_item" ]; then
-        ui_print "   >[Error: No item selected.]<"
+        logger "   >[Error: No item selected.]<"
         exit 1 
     fi  
 
-    ui_print "   >[Selected $selected_item $selection_type...]<"  
+    logger "   >[Selected $selected_item $selection_type...]<"  
 
     if [ "$selection_type" = "font" ]; then
         handle_selection "Fonts" "$selected_item"
     elif [ "$selection_type" = "emoji" ]; then
         handle_selection "Emoji" "$selected_item"
     else
-        ui_print "   >[Error: Invalid selection type.]<"
+        logger "   >[Error: Invalid selection type.]<"
         exit 1 
     fi  
 }
@@ -44,7 +44,7 @@ handle_selection() {
     local category="$1" 
     local selected_item="$2"
 
-    ui_print "   >[Extracting available versions for: $selected_item]<"
+    logger "   >[Extracting available versions for: $selected_item]<"
     extract_info "$JSON_PATH" "$category" "$selected_item"
 
     local item_list="" 
@@ -55,7 +55,7 @@ handle_selection() {
     fi  
 
     if [ -z "$item_list" ]; then
-        ui_print "   >[Error: No matching $category found!]<"
+        logger "   >[Error: No matching $category found!]<"
         exit 1 
     fi  
 
@@ -64,11 +64,11 @@ handle_selection() {
 
     if [ "$item_count" -eq 1 ]; then
         selected_version=$(echo "$item_list" | sed 's/^ *//;s/ *$//')
-        ui_print "   >[Auto-selecting $category: $selected_version]<"
+        logger "   >[Auto-selecting $category: $selected_version]<"
     else     
-        ui_print "###########################"
-        ui_print "- Select $category Version"
-        ui_print "###########################"
+        logger "###########################"
+        logger "- Select $category Version"
+        logger "###########################"
 
         selected_version=""
         IFS=","
@@ -77,7 +77,7 @@ handle_selection() {
 
         for item; do
             item=$(echo "$item" | sed 's/^ *//;s/ *$//')
-            ui_print "   >[$item]< "
+            logger "   >[$item]< "
             if $VKSEL; then
                 selected_version="$item"
                 break
@@ -86,35 +86,35 @@ handle_selection() {
     fi
 
     if [ -z "$selected_version" ]; then
-        ui_print "   >[Error: No version selected!]<"
+        logger "   >[Error: No version selected!]<"
         exit 1 
     fi  
 
-    ui_print "   >[Downloading $category: $selected_version]<"
+    logger "   >[Downloading $category: $selected_version]<"
     item_path="$TMPDIR/${selected_version}.ttf"
     download_ef "$selected_version" "$item_path"
 
     if [ ! -f "$item_path" ]; then
-        ui_print "   >[Error: $category download failed!]<"
+        logger "   >[Error: $category download failed!]<"
         exit 1 
     fi  
 
-    ui_print "   >[Installing $category: $selected_version]<"
+    logger "   >[Installing $category: $selected_version]<"
     install_font "$category" "$item_path"
 }
 
 select_mode() { 
-    ui_print "###########################" 
-    ui_print "- Select A Mode"
-    ui_print "1. Emojis"
-    ui_print "2. Fonts"
-    ui_print "3. Both"
-    ui_print "4. Exit"
-    ui_print "###########################"  
+    logger "###########################" 
+    logger "- Select A Mode"
+    logger "1. Emojis"
+    logger "2. Fonts"
+    logger "3. Both"
+    logger "4. Exit"
+    logger "###########################"  
 
     local selected_mode=""
     for mode in 1 2 3 4; do
-        ui_print "   >[$mode]< "
+        logger "   >[$mode]< "
         if $VKSEL; then
             selected_mode="$mode"
             break
@@ -124,51 +124,56 @@ select_mode() {
     if [ -n "$selected_mode" ]; then
         case "$selected_mode" in
             1)
-                ui_print "   >[Selected Mode: Emojis]<"
+                logger "   >[Selected Mode: Emojis]<"
                 extract_info "$JSON_PATH" Emoji
                 selection_list="$emoji_list"
                 selection_type="emoji"
                 select_item
+                updesc "📌 Applied $emoji font injection" "$MODPATH/module.prop"
                 ;;
             2)
-                ui_print "   >[Selected Mode: Fonts]<"
+                logger "   >[Selected Mode: Fonts]<"
                 extract_info "$JSON_PATH" Fonts
                 selection_list="$font_list"
                 selection_type="font"
                 select_item
+                updesc "📌 Applied $font font injection" "$MODPATH/module.prop"
                 ;;
             3)
-                ui_print "   >[Selected Mode: Both]<"
-                ui_print "   >[Select A Font]<"
+                logger "   >[Selected Mode: Both]<"
+                logger "   >[Select A Font]<"
                 extract_info "$JSON_PATH" Fonts
                 selection_list="$font_list"
                 selection_type="font"
                 select_item
-
-                ui_print "###########################" 
-                ui_print "   >[Selected Mode: Both]<"
-                ui_print "   >[Select An Emoji]<"
+                logger "###########################" 
+                logger "   >[Selected Mode: Both]<"
+                logger "   >[Select An Emoji]<"
                 extract_info "$JSON_PATH" Emoji
                 selection_list="$emoji_list"
                 selection_type="emoji"
                 select_item
+                updesc "📌 Injected $font font and $emoji emoji support" "$MODPATH/module.prop"
                 ;;
             4)
-                ui_print "   >[Exiting...]<"
+                logger "   >[Exiting...]<"
                 exit 0
                 ;;
             *)
-                ui_print "   >[Invalid Selection, Aborting.]<"
+                logger "   >[Invalid Selection, Aborting.]<"
                 exit 1
                 ;;
         esac
     else       
-        ui_print "   >[No mode selected, aborting.]<"
+        logger "   >[No mode selected, aborting.]<"
         exit 1   
     fi  
 }
 
-ui_print "####################################" 
-ui_print "   >[Magisk & KernelSU Compatible]<"  
-ui_print "####################################" 
-ui_print "   >[🔄 Downloading latest font info JSON...]<" && download_tools && select_mode
+if [ -f "$log_file" ]; then
+rm -f "$log_file"
+fi
+logger "####################################" 
+logger "   >[Magisk & KernelSU Compatible]<"  
+logger "####################################" 
+logger "   >[🔄 Downloading latest font info JSON...]<" && download_tools && select_mode
