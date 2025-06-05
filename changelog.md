@@ -5,3 +5,4 @@
 - ✍️ Introduced the `updesc` function for improved and dynamic updating of the module description, ensuring clean formatting with square brackets only when needed.
 - 🧹 General improvements to installation logic and structure for better compatibility and stability.
 - 🆕 **Added Google Sans font** for a modern and clean system appearance.
+- 🔀 **Hybrid Mount Logic**: Automatically detects if **Mountify** is present and skips manual bind-mounting to avoid conflicts and ensure proper mounting through Mountify.

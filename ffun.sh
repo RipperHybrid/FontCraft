@@ -199,13 +199,19 @@ update_system_folder
 check_enforce_status "$MODPATH/module.prop" || exit 0
 
 EMOJI_FONT="$MODPATH/system/fonts/NotoColorEmoji.ttf"
+
 if [ -f "$EMOJI_FONT" ]; then
-  log "Found emoji font, mounting..."
-  if mount --bind "$EMOJI_FONT" /system/fonts/NotoColorEmoji.ttf; then
-    log "Mount successful"
+  if [ -d /data/adb/modules/mountify ]; then
+    log "Mountify detected, skipping manual bind-mount"
     updesc False "$MODPATH/module.prop"
   else
-    log "Mount failed"
+    log "Mountify not detected, performing manual bind-mount"
+    if mount --bind "$EMOJI_FONT" /system/fonts/NotoColorEmoji.ttf; then
+      log "Mount successful"
+      updesc False "$MODPATH/module.prop"
+    else
+      log "Mount failed"
+    fi
   fi
 else
   log "Emoji font not found at $EMOJI_FONT"
