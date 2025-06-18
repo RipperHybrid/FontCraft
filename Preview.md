@@ -80,6 +80,10 @@
 ### Marvel
 - <img src="Fonts/Marvel/Marvel.png" width="200px">
 
+### Ndot
+- <img src="Fonts/Ndot/Ndot-57-Aligned.png" width="200px">
+- <img src="Fonts/Ndot/Ndot-57.png" width="200px">
+
 ### Odin
 - <img src="Fonts/Odin/Odin.png" width="200px">
 
