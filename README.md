@@ -55,9 +55,6 @@ To view available fonts and emojis, check out **[Preview.md](Preview.md)**.
 ## 👤 Author
 Developed by **AshBorn** – [@Ripper_Hybrid](https://t.me/Ripper_Hybrid)
 
-**Original idea:** chainfire and ianmacd @xda-developers  
-**Touch navigation & menu enhancements:** AshBorn ([@Ripper_Hybrid](https://t.me/Ripper_Hybrid))
-
 ## 🔗 Credits
 - **jq Binary** – [jqlang/jq/jqlang/jq)
 - **MMT Extended Utility Functions** – [Zackptg5/MMT-Extended](https://github.com/Zackptg5/MMT-Extended)
