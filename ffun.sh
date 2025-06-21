@@ -10,22 +10,26 @@ font=none
 emoji=none
 
 chooseport() {
+  # Original idea by chainfire and ianmacd @xda-developers
+  # Modified by AshBorn (@Ripper_Hybrid) to add touch support
   [ "$1" ] && local delay=$1 || local delay=10
   local attempts=0
   while [ $attempts -lt 3 ]; do
     local count=0
     while true; do
-      timeout $delay /system/bin/getevent -lqc 1 2>&1 > $TMPDIR/events &
-      sleep 0.5; count=$((count + 1))
-      grep -q 'KEY_VOLUMEUP *DOWN' $TMPDIR/events && return 0
-      grep -q 'KEY_VOLUMEDOWN *DOWN' $TMPDIR/events && return 1
+      EVENT_LINE=$(timeout "$delay" /system/bin/getevent -lqc 1 2>&1)
+      count=$((count + 1))
+      echo "$EVENT_LINE" | grep -q 'ABS_MT_TRACKING_ID' && { sleep 0.2; return 0; }
+      echo "$EVENT_LINE" | grep -q 'KEY_VOLUMEUP *DOWN' && { sleep 0.2; return 1; }
+      echo "$EVENT_LINE" | grep -q 'KEY_VOLUMEDOWN *DOWN' && { sleep 0.2; return 2; }
       [ $count -gt 9 ] && break
+      sleep 0.2
     done
     attempts=$((attempts + 1))
-    echo "- Volume key not detected. Try again ($attempts/3)"
+    echo "   >[Input not detected. Try again ($attempts/3)]< "
     echo " "
   done
-  echo "- Volume key not detected after 3 attempts. Aborting."
+  echo "   >[Input not detected after 3 attempts. Aborting.]< "
   return 1
 }
 
@@ -70,21 +74,24 @@ check_enforce_status() {
 install_font() {
     font_name=$1
     font_path=$2
+    dest_path=$3/system/fonts/
+
     logger "###########################"
     logger "   >[Installing $font_name font...]< "
     sleep 0.2
-    mkdir -p "$MODPATH/new_system/fonts"
-    logger "   >[Created destination directory for $font_name]< "
+
+    mkdir -p "$dest_path"
+    logger "   >[Created destination directory for $font_name at $dest_path]< "
     sleep 0.5
+
     if [ "$font_name" = "Emoji" ]; then
         logger "   >[Renaming and installing emoji font...]< "
-        cp "$font_path" "$MODPATH/new_system/fonts/NotoColorEmoji.ttf" || {
+        cp "$font_path" "$dest_path/NotoColorEmoji.ttf" || {
             logger "   >[Error: Failed to copy NotoColorEmoji.ttf."
             exit 1
         }
         logger "   >[Successfully installed emoji font as NotoColorEmoji.ttf]< "
         emoji="$selected_item"
-        mka_postfs
     elif [ "$font_name" = "Fonts" ]; then
         logger "   >[Renaming and installing font...]< "
         ttf_file=$(find "$font_path" -type f -name '*.ttf' | head -n 1)
@@ -103,18 +110,18 @@ install_font() {
         logger "   >[Moved selected_font.ttf to $tmp_dir]< "
         sleep 0.5
         for dest_file in SourceSansPro-Regular.ttf RobotoStatic-Regular.ttf Roboto-Regular.ttf DroidSansMono.ttf; do
-            cp "$tmp_dir/selected_font.ttf" "$MODPATH/new_system/fonts/$dest_file" || {
+            cp "$tmp_dir/selected_font.ttf" "$dest_path/$dest_file" || {
                 logger "   >[Error: Failed to copy $dest_file.]< "
                 exit 1
             }
         done
         logger "   >[$font_name font successfully installed.]< "
         font="$selected_item"
-        mka_postfs
     else
         logger "Error: Invalid font type. Must be 'Font' or 'Emoji'."
         exit 1
     fi
+
     sleep 0.2
     logger "###########################"
 }
@@ -166,58 +173,6 @@ extract_info() {
         done
         font_list="${font_list# }"
     fi
-}
-
-mka_postfs() {
-cat > "$MODPATH/post-fs-data.sh" << 'EOF'
-#!/system/bin/sh
-
-MODPATH="${0%/*}"
-log() { logger "[StylizeText] post-fs: $1"; }
-. "$MODPATH"/ffun.sh
-
-log "post-fs-data.sh started"
-
-update_system_folder() {
-  local system_folder="$MODPATH/system"
-  local new_system_folder="$MODPATH/new_system"
-
-  if [ -d "$new_system_folder" ]; then
-    if [ -d "$system_folder" ]; then
-      log "Removing existing system folder: $system_folder"
-      rm -rf "$system_folder" && log "Removed $system_folder" || log "Failed to remove $system_folder"
-    fi
-    log "Moving new_system → system: $new_system_folder → $system_folder"
-    mv "$new_system_folder" "$system_folder" && log "Moved successfully" || log "Failed to move"
-  else
-    log "No new_system folder found; skipping move"
-  fi
-}
-
-update_system_folder
-
-check_enforce_status "$MODPATH/module.prop" || exit 0
-
-EMOJI_FONT="$MODPATH/system/fonts/NotoColorEmoji.ttf"
-
-if [ -f "$EMOJI_FONT" ]; then
-  if [ -d /data/adb/modules/mountify ]; then
-    log "Mountify detected, skipping manual bind-mount"
-    updesc False "$MODPATH/module.prop"
-  else
-    log "Mountify not detected, performing manual bind-mount"
-    if mount --bind "$EMOJI_FONT" /system/fonts/NotoColorEmoji.ttf; then
-      log "Mount successful"
-      updesc False "$MODPATH/module.prop"
-    else
-      log "Mount failed"
-    fi
-  fi
-else
-  log "Emoji font not found at $EMOJI_FONT"
-fi
-
-EOF
 }
 
 download_ef() {
