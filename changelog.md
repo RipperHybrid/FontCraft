@@ -1,8 +1,19 @@
-## FontCraft Pro Module - Version 4.0 Changelog
+# FontCraft Pro - Version 5.0 Changelog
 
-- 🛠 Fixed issue where **emoji fonts weren’t applying system-wide** by adding a `mount --bind` to force-load `NotoColorEmoji.ttf` for all apps.
-- 🚫 Added **DenyList enforcement detection**: If Zygisk Next DenyList is enforced, emoji mounting is skipped and a warning is shown.
-- ✍️ Introduced the `updesc` function for improved and dynamic updating of the module description, ensuring clean formatting with square brackets only when needed.
-- 🧹 General improvements to installation logic and structure for better compatibility and stability.
-- 🆕 **Added Google Sans font** for a modern and clean system appearance.
-- 🔀 **Hybrid Mount Logic**: Automatically detects if **Mountify** is present and skips manual bind-mounting to avoid conflicts and ensure proper mounting through Mountify.
+## 🛠 Fixed
+- Completely fixed `action.sh` script - now works correctly without issues
+- Resolved all previous functionality problems
+
+## ✨ Improved
+- Optimized and refined several core functions
+- Enhanced overall script performance and reliability
+- Better error handling and logging system
+
+## ➕ Added
+- New "Nothing Font" support
+- Additional font customization options
+
+## 🔄 Other Changes
+- Implemented various improvements from user feedback
+- Code cleanup and optimization
+- Updated documentation

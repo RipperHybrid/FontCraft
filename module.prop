@@ -1,7 +1,7 @@
 id=StylizeText
 name=FontCraft Pro
-version=v3.1
-versionCode=4
+version=v3.3
+versionCode=5
 author=AshBorn (@Ripper_Hybrid)
 description=Stylish fonts & emojis for a personalized experience.
 updateJson=https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/update.json
