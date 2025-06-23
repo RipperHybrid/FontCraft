@@ -1,19 +1,14 @@
-# FontCraft Pro - Version 5.0 Changelog
+# FontCraft Pro - Version 5.1 Changelog
 
 ## 🛠 Fixed
 - Completely fixed `action.sh` script - now works correctly without issues
-- Resolved all previous functionality problems
-
-## ✨ Improved
-- Optimized and refined several core functions
-- Enhanced overall script performance and reliability
-- Better error handling and logging system
+- Use cp instead of rsync in `action.sh`
 
 ## ➕ Added
 - New "Nothing Font" support
-- Additional font customization options
+- WhatsApp v2.25.9.78 emoji set (Unicode 16.0)
+- Microsoft Fluent UI 3D set (FluentUI3D_U15.1)
 
-## 🔄 Other Changes
-- Implemented various improvements from user feedback
-- Code cleanup and optimization
-- Updated documentation
+## 🔄 Updated
+- Apple emoji set updated to iOS 18.4 Beta 2 (Unicode 16.0)
+- Synced alias mappings and metadata with Unicode 16.0 specification

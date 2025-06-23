@@ -2,11 +2,6 @@
 
 MODPATH="${0%/*}"
 . "$MODPATH"/ffun.sh || { echo "Error: Failed to source ffun.sh"; exit 1; }
-UPDIR="/data/adb/modules_update/StylizeText" 
-JSON_URL="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/fonts.json" 
-JQ_URL="https://github.com/RipperHybrid/FontCraft/raw/refs/heads/Master/common/addon/jq/tool/jq"
-JSON_PATH="$TMPDIR/fonts.json" 
-jq="$TMPDIR/jq" 
 both=false
 
 select_item() {
@@ -193,7 +188,27 @@ logger "####################################"
 logger "   >[Magisk & KernelSU Compatible]<"  
 logger "####################################" 
 logger "   >[🔄 Downloading latest font info JSON...]<"
-rsync -a --exclude='update' --exclude='remove' "$MODPATH" "$UPDIR"
+mkdir -p "$UPDIR"
+success=1
+for item in "$MODPATH"/*; do
+    name=$(basename "$item")
+    if [ "$name" = "update" ] || [ "$name" = "remove" ]; then
+        continue
+    fi
+    if [ -d "$item" ]; then
+        mkdir -p "$UPDIR/$name"
+        cp -af "$item/"* "$UPDIR/$name/" 2>/dev/null || true
+    elif [ -f "$item" ]; then
+        cp -af "$item" "$UPDIR/$name" || success=0
+    fi
+done
+
+if [ $success -eq 1 ]; then
+    logger "   >[✅ Module files copied successfully.]<"
+else
+    logger "   >[❌ Failed to copy some module files.]<"
+    abort
+fi
 download_tools
 logger "#############################################"
 logger "             Menu Navigation:                     "
