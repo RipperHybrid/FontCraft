@@ -3,8 +3,12 @@
 ### Facebook
 - <img src="Emoji/Facebook/Facebook.png" width="200px">
 
+### FluentUI
+- <img src="Emoji/FluentUI/FluentUI3D_U15.1.png" width="200px">
+
 ### Ios
-- <img src="Emoji/Ios/Ios.png" width="200px">
+- <img src="Emoji/Ios/iOS17.4.png" width="200px">
+- <img src="Emoji/Ios/iOS18.4_Beta_2_(Unicode 16).png" width="200px">
 
 ### JoyPixel
 - <img src="Emoji/JoyPixel/JoyPixel.png" width="200px">
@@ -16,6 +20,9 @@
 - <img src="Emoji/SamsungOneUi/Screenshot_20250325-003841.png" width="200px">
 - <img src="Emoji/SamsungOneUi/Screenshot_20250325-003852.png" width="200px">
 - <img src="Emoji/SamsungOneUi/Screenshot_20250325-003905.png" width="200px">
+
+### Whatsapp
+- <img src="Emoji/Whatsapp/WhatsApp2.25.9.78.png" width="200px">
 
 ### Ablax
 - <img src="Fonts/Ablax/Ablax.png" width="200px">

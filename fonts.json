@@ -3,9 +3,12 @@
     "Facebook": [
       "FaceBookU15.ttf"
     ],
+    "FluentUI": [
+      "FluentUI3D_U15.1.ttf"
+    ],
     "Ios": [
       "iOS17.4.ttf",
-      "iOS18.1.ttf"
+      "iOS18.4(Unicode16).ttf"
     ],
     "JoyPixel": [
       "JoyPixelU15.ttf"
@@ -17,6 +20,9 @@
       "Samsung_OneUI5_beta4_U15.ttf",
       "Samsung_OneUi6_beta8_u15.1.ttf",
       "SamsungOneUI4_Xmas.ttf"
+    ],
+    "Whatsapp": [
+      "WhatsApp2.25.9.78.ttf"
     ]
   },
   "Fonts": {
