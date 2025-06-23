@@ -6,8 +6,13 @@ logger() {
       echo "$(date '+%d.%m.%y %T'): $message" >> "$log_file"
 }
 
+set -x
 font=none
 emoji=none
+jq="$MODPATH/jq/jq"
+UPDIR="/data/adb/modules_update/StylizeText" 
+JSON_URL="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/fonts.json" 
+JSON_PATH="$TMPDIR/fonts.json" 
 
 chooseport() {
   # Original idea by chainfire and ianmacd @xda-developers
@@ -210,10 +215,8 @@ download_ef() {
 download_tools() {
     if command -v curl >/dev/null 2>&1; then
         curl -sL "$JSON_URL" -o "$JSON_PATH"
-        curl -sL "$JQ_URL" -o "$jq"
     elif command -v wget >/dev/null 2>&1; then
         wget -qO "$JSON_PATH" "$JSON_URL"
-        wget -qO "$jq" "$JQ_URL"
     else
         logger "   >[❌ No downloader found (curl/wget).]< "
         return 1
