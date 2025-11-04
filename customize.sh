@@ -173,7 +173,7 @@ select_mode() {
             ;;
         4)
             logger "   >[Exiting...]<"
-            exit 0
+            abort
             ;;
         *)
             logger "   >[Invalid Selection, Aborting.]<"
