@@ -43,14 +43,14 @@
 To view available fonts and emojis, check out **[Preview.md](Preview.md)**.
 
 ## ❓ FAQ
-- **How to restore the default font?**  
-  Uninstall the module from Magisk/KSU to revert changes.
 
-- **Does it work on all Android versions?**  
-  Yes, since Android uses the same TTF format. Tested on **Android 15 (Nothing OS)**.
+- **How to restore the default font?** Uninstall the module from Magisk/KSU to revert changes.
 
-- **Will I lose changes after a system update?**  
-  Yes, you may need to reapply the font.
+- **Does it work on all Android versions?** Yes, since Android uses the same TTF format. Tested on **Android 15 (Nothing OS)**.
+
+- **Will I lose changes after a system update?** Yes, you may need to reapply the font.
+
+- **What if my emojis aren't working?** If you are using **Zygisk Next 1.3.0** (or newer), its hiding features can conflict with font modules on Android 12+. You **must** install the separate `FontLoader` module to fix this. You can get it from a trusted source or from the official Zygisk Next post here: https://t.me/real5ec1cff/265
 
 ## 👤 Author
 Developed by **AshBorn** – [@Ripper_Hybrid](https://t.me/Ripper_Hybrid)
