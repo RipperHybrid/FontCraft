@@ -41,6 +41,14 @@ chooseport() {
 VKSEL=chooseport
 log_file="/cache/FCraft-Installation.log"
 
+if [ "$BOOTMODE" ] && [ "$KSU" ]; then
+    method="KernelSU"
+elif [ "$BOOTMODE" ] && [ "$MAGISK_VER_CODE" ]; then
+    method="Magisk"
+else
+    method="Unknown"
+fi
+
 updesc() {
     input="$1"
     file="$2"
@@ -92,7 +100,7 @@ install_font() {
     if [ "$font_name" = "Emoji" ]; then
         logger "   >[Renaming and installing emoji font...]< "
         cp "$font_path" "$dest_path/NotoColorEmoji.ttf" || {
-            logger "   >[Error: Failed to copy NotoColorEmoji.ttf."
+            logger "   >[Error: Failed to copy NotoColorEmoji.ttf.]< "
             exit 1
         }
         logger "   >[Successfully installed emoji font as NotoColorEmoji.ttf]< "
@@ -109,19 +117,35 @@ install_font() {
         logger "   >[Created temporary directory: $tmp_dir]< "
         sleep 0.5
         cp "$ttf_file" "$tmp_dir/selected_font.ttf" || {
-            logger "   >[Error: Failed to copy selected_font.ttf."
+            logger "   >[Error: Failed to copy selected_font.ttf.]< "
             exit 1
         }
         logger "   >[Moved selected_font.ttf to $tmp_dir]< "
         sleep 0.5
-        for dest_file in SourceSansPro-Regular.ttf RobotoStatic-Regular.ttf Roboto-Regular.ttf DroidSansMono.ttf; do
-            cp "$tmp_dir/selected_font.ttf" "$dest_path/$dest_file" || {
-                logger "   >[Error: Failed to copy $dest_file.]< "
-                exit 1
-            }
+        
+        core_fonts="Roboto-Regular.ttf RobotoStatic-Regular.ttf RobotoFlex-Regular.ttf DroidSansMono.ttf CutiveMono.ttf NotoSerif-Regular.ttf NotoSerif-Bold.ttf NotoSerif-Italic.ttf NotoSerif-BoldItalic.ttf SourceSansPro-Regular.ttf SourceSansPro-Italic.ttf SourceSansPro-SemiBold.ttf SourceSansPro-SemiBoldItalic.ttf SourceSansPro-Bold.ttf SourceSansPro-BoldItalic.ttf ComingSoon.ttf DancingScript-Regular.ttf CarroisGothicSC-Regular.ttf"
+        
+        replaced_count=0
+        skipped_count=0
+        
+        for dest_file in $core_fonts; do
+            if [ -f "/system/fonts/$dest_file" ]; then
+                cp "$tmp_dir/selected_font.ttf" "$dest_path/$dest_file" || {
+                    logger "   >[Error: Failed to copy $dest_file.]< "
+                    exit 1
+                }
+                replaced_count=$((replaced_count + 1))
+            else
+                logger "   >[Skipped: $dest_file (not found in system)]< "
+                skipped_count=$((skipped_count + 1))
+            fi
         done
-        logger "   >[$font_name font successfully installed.]< "
+        
+        logger "   >[Successfully replaced $replaced_count font files.]< "
+        logger "   >[Skipped $skipped_count font files.]< "
+        
         font="$selected_item"
+        mk_service "$method" 
     else
         logger "Error: Invalid font type. Must be 'Font' or 'Emoji'."
         exit 1
@@ -210,6 +234,103 @@ download_ef() {
         logger "- Failed to download: $name"
         return 1
     fi
+}
+
+mk_service() {
+    local root_type=$1
+    
+    if [ -f "$MODPATH/StylizeText.png" ]; then
+        su -c "mv \"$MODPATH/StylizeText.png\" /data/local/tmp/StylizeText_icon.png && chmod 644 /data/local/tmp/StylizeText_icon.png"
+    fi
+    
+    cat > "$MODPATH/service.sh" << EOF
+#!/system/bin/sh
+
+TMP_ICON="/data/local/tmp/StylizeText_icon.png"
+LOG_FILE="/cache/fontcraft.log"
+
+log_message() {
+    echo "\$(date '+%Y-%m-%d %I:%M:%S %p') - \$1" >> "\$LOG_FILE"
+}
+
+log_message "StylizeText service started"
+
+while [ "\$(getprop sys.boot_completed)" != "1" ]; do
+    sleep 20
+done
+
+log_message "Boot completed, starting main loop"
+
+REMOVE_FONTS() {
+    local DELETED=0
+    local file_count=0
+    local font_files=""
+
+    log_message "Checking for fonts to remove..."
+
+    if [ -d /data/fonts/config ]; then
+        font_files=\$(find /data/fonts/config -maxdepth 1 -type f -name "*.xml" 2>/dev/null)
+        if [ -n "\$font_files" ]; then
+            file_count=\$(echo "\$font_files" | wc -l)
+            echo "\$font_files" | while IFS= read -r file; do
+                rm -f "\$file"
+            done
+            log_message "Deleted \$file_count XML config files"
+            DELETED=1
+        fi
+    fi
+
+    if [ -d /data/fonts/files ]; then
+        font_files=\$(find /data/fonts/files -maxdepth 1 -type f \\( -name "*.ttf" -o -name "*.otf" \\) 2>/dev/null)
+        if [ -n "\$font_files" ]; then
+            file_count=\$(echo "\$font_files" | wc -l)
+            echo "\$font_files" | while IFS= read -r file; do
+                rm -f "\$file"
+            done
+            log_message "Deleted \$file_count font files directly in files directory"
+            DELETED=1
+        fi
+        
+        local folders=\$(find /data/fonts/files -maxdepth 1 -type d -name "~~*" 2>/dev/null)
+        if [ -n "\$folders" ]; then
+            echo "\$folders" | while IFS= read -r folder; do
+                if [ "\$folder" != "/data/fonts/files" ]; then
+                    local ttf_count=\$(find "\$folder" -maxdepth 1 -type f -name "*.ttf" 2>/dev/null | wc -l)
+                    local otf_count=\$(find "\$folder" -maxdepth 1 -type f -name "*.otf" 2>/dev/null | wc -l)
+                    local total_count=\$((ttf_count + otf_count))
+                    
+                    if [ \$total_count -gt 0 ]; then
+                        rm -rf "\$folder"
+                        local folder_name=\$(basename "\$folder")
+                        log_message "Deleted: '\$folder_name' (\$total_count fonts: \$ttf_count ttf, \$otf_count otf)"
+                        DELETED=1
+                    fi
+                fi
+            done
+        fi
+    fi
+
+    return \$DELETED
+}
+
+while true; do
+    REMOVE_FONTS
+    DELETED=\$?
+    
+    if [ \$DELETED -eq 1 ]; then
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+            if [ -f "\$TMP_ICON" ]; then
+                su 2000 -c "cmd notification post -t \"$root_type\" -i file://\$TMP_ICON \"StylizeText\" \"StylizeText: Fonts/Emojis error fixed. Reboot recommended.\"" && break
+            else
+                su 2000 -c "cmd notification post -t \"$root_type\" \"StylizeText\" \"StylizeText: Fonts/Emojis error fixed. Reboot recommended.\"" && break
+            fi
+            sleep 1
+        done
+    fi
+    
+    sleep 5400
+done
+EOF
 }
 
 download_tools() {
