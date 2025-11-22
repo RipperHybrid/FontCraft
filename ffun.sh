@@ -1,16 +1,9 @@
 #!/system/bin/sh
 
-logger() {
-    local message="$1"
-      echo "$message"
-      echo "$(date '+%d.%m.%y %T'): $message" >> "$log_file"
-}
-
 set -x
 font=none
 emoji=none
-jq="$MODPATH/jq/jq"
-UPDIR="/data/adb/modules_update/StylizeText" 
+jq="$MODPATH/binaries/jq"
 JSON_URL="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/fonts.json" 
 JSON_PATH="$TMPDIR/fonts.json" 
 
@@ -39,49 +32,29 @@ chooseport() {
 }
 
 VKSEL=chooseport
-log_file="/cache/FCraft-Installation.log"
-
-if [ "$BOOTMODE" ] && [ "$KSU" ]; then
-    method="KernelSU"
-elif [ "$BOOTMODE" ] && [ "$MAGISK_VER_CODE" ]; then
-    method="Magisk"
-else
-    method="Unknown"
-fi
 
 updesc() {
     input="$1"
     file="$2"
     prepend="$3"
-    [ -f "$file" ] || { logger "   >[File not found: $file]< "; return 1; }
+    [ -f "$file" ] || { ui_print "   >[File not found: $file]< "; return 1; }
     current_desc=$(awk -F= '/^description=/{print substr($0, index($0,$2)); exit}' "$file")
     if [ "$input" = "False" ]; then
         if [ -z "$prepend" ]; then
             orig=$(printf '%s' "$current_desc" | sed 's/^[^[]*\[\(.*\)\]$/\1/')
-            logger "   >[Restoring original description: '$orig']< "
+            ui_print "   >[Restoring original description: '$orig']< "
             awk -v orig="$orig" 'BEGIN{done=0} /^description=/ && !done {print "description=" orig; done=1; next} {print}' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
         else
             case "$current_desc" in
-                "$prepend"*) logger "   >[Skipping prepend, already starts with: $prepend]< "; return;;
+                "$prepend"*) ui_print "   >[Skipping prepend, already starts with: $prepend]< "; return;;
             esac
-            logger "   >[Prepending: '$prepend' to old description: '$current_desc']< "
+            ui_print "   >[Prepending: '$prepend' to old description: '$current_desc']< "
             awk -v pre="$prepend" -v desc="$current_desc" 'BEGIN{done=0} /^description=/ && !done {print "description=" pre " [" desc "]"; done=1; next} {print}' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
         fi
     else
-        logger "   >[Setting description to: '$input']< "
+        ui_print "   >[Setting description to: '$input']< "
         awk -v input="$input" 'BEGIN{done=0} /^description=/ && !done {print "description=" input; done=1; next} {print}' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
     fi
-}
-
-check_enforce_status() {
-    local flag_file="/data/adb/zygisksu/denylist_enforce"
-    local modprop="$1"
-    [ -f "$flag_file" ] || return 0
-    if [ "$(cat "$flag_file")" = "1" ]; then
-        updesc "False" "$modprop" "❌ Emoji may not work: Zygisk Next DenyList is enforced"
-        return 1
-    fi
-    return 0
 }
 
 install_font() {
@@ -89,38 +62,38 @@ install_font() {
     font_path=$2
     dest_path=$3/system/fonts/
 
-    logger "###########################"
-    logger "   >[Installing $font_name font...]< "
+    ui_print "###########################"
+    ui_print "   >[Installing $font_name font...]< "
     sleep 0.2
 
     mkdir -p "$dest_path"
-    logger "   >[Created destination directory for $font_name at $dest_path]< "
+    ui_print "   >[Created destination directory for $font_name at $dest_path]< "
     sleep 0.5
 
     if [ "$font_name" = "Emoji" ]; then
-        logger "   >[Renaming and installing emoji font...]< "
+        ui_print "   >[Renaming and installing emoji font...]< "
         cp "$font_path" "$dest_path/NotoColorEmoji.ttf" || {
-            logger "   >[Error: Failed to copy NotoColorEmoji.ttf.]< "
+            ui_print "   >[Error: Failed to copy NotoColorEmoji.ttf.]< "
             exit 1
         }
-        logger "   >[Successfully installed emoji font as NotoColorEmoji.ttf]< "
+        ui_print "   >[Successfully installed emoji font as NotoColorEmoji.ttf]< "
         emoji="$selected_item"
     elif [ "$font_name" = "Fonts" ]; then
-        logger "   >[Renaming and installing font...]< "
+        ui_print "   >[Renaming and installing font...]< "
         ttf_file=$(find "$font_path" -type f -name '*.ttf' | head -n 1)
         if [ -z "$ttf_file" ]; then
-            logger "   >[Error: No TTF file found in $font_path.]< "
+            ui_print "   >[Error: No TTF file found in $font_path.]< "
             exit 1
         fi
         tmp_dir="$TMPDIR/processed_font"
         mkdir -p "$tmp_dir"
-        logger "   >[Created temporary directory: $tmp_dir]< "
+        ui_print "   >[Created temporary directory: $tmp_dir]< "
         sleep 0.5
         cp "$ttf_file" "$tmp_dir/selected_font.ttf" || {
-            logger "   >[Error: Failed to copy selected_font.ttf.]< "
+            ui_print "   >[Error: Failed to copy selected_font.ttf.]< "
             exit 1
         }
-        logger "   >[Moved selected_font.ttf to $tmp_dir]< "
+        ui_print "   >[Moved selected_font.ttf to $tmp_dir]< "
         sleep 0.5
         
         core_fonts="Roboto-Regular.ttf RobotoStatic-Regular.ttf RobotoFlex-Regular.ttf DroidSansMono.ttf CutiveMono.ttf NotoSerif-Regular.ttf NotoSerif-Bold.ttf NotoSerif-Italic.ttf NotoSerif-BoldItalic.ttf SourceSansPro-Regular.ttf SourceSansPro-Italic.ttf SourceSansPro-SemiBold.ttf SourceSansPro-SemiBoldItalic.ttf SourceSansPro-Bold.ttf SourceSansPro-BoldItalic.ttf ComingSoon.ttf DancingScript-Regular.ttf CarroisGothicSC-Regular.ttf"
@@ -131,28 +104,27 @@ install_font() {
         for dest_file in $core_fonts; do
             if [ -f "/system/fonts/$dest_file" ]; then
                 cp "$tmp_dir/selected_font.ttf" "$dest_path/$dest_file" || {
-                    logger "   >[Error: Failed to copy $dest_file.]< "
+                    ui_print "   >[Error: Failed to copy $dest_file.]< "
                     exit 1
                 }
                 replaced_count=$((replaced_count + 1))
             else
-                logger "   >[Skipped: $dest_file (not found in system)]< "
+                ui_print "   >[Skipped: $dest_file (not found in system)]< "
                 skipped_count=$((skipped_count + 1))
             fi
         done
         
-        logger "   >[Successfully replaced $replaced_count font files.]< "
-        logger "   >[Skipped $skipped_count font files.]< "
+        ui_print "   >[Successfully replaced $replaced_count font files.]< "
+        ui_print "   >[Skipped $skipped_count font files.]< "
         
         font="$selected_item"
-        mk_service "$method" 
     else
-        logger "Error: Invalid font type. Must be 'Font' or 'Emoji'."
+        ui_print "Error: Invalid font type. Must be 'Font' or 'Emoji'."
         exit 1
     fi
 
     sleep 0.2
-    logger "###########################"
+    ui_print "###########################"
 }
 
 extract_info() {
@@ -160,196 +132,93 @@ extract_info() {
     local category="$2"
     local input="$3"
     local values
+    emoji_list=""
+    font_list=""
     if [ -z "$file" ]; then
         file=$(ls -t *.json 2>/dev/null | head -n 1)
         if [ -z "$file" ]; then
-            logger "   >[No JSON file found!]< "
+            ui_print "   >[No JSON file found!]< "
             return 1
         fi
     fi
     if [ -z "$category" ]; then
-        logger "   >[Available categories: Emoji, Fonts]< "
+        ui_print "   >[Available categories: Emoji, Fonts]< "
         return 0
     fi
     if [ "$category" != "Emoji" ] && [ "$category" != "Fonts" ]; then
-        logger "   >[Invalid category! Use: Emoji or Fonts]< "
+        ui_print "   >[Invalid category! Use: Emoji or Fonts]< "
         return 1
     fi
     if [ -z "$input" ]; then
         values=$($jq -r --arg cat "$category" '.[$cat] | keys[]' "$file")
     else
-        if $jq -e --arg cat "$category" --arg key "$input" '.[$cat][$key] | length > 0' "$file" > /dev/null 2>&1; then
-            values=$($jq -r --arg cat "$category" --arg key "$input" '.[$cat][$key][]' "$file")
+        if $jq -e --arg cat "$category" --arg key "$input" '.[$cat][$key].files | length > 0' "$file" > /dev/null 2>&1; then
+            values=$($jq -r --arg cat "$category" --arg key "$input" '.[$cat][$key].files[].filename' "$file")
         else
-            logger "$input not found in $category!"
+            ui_print "   >[Error: '$input' structure invalid in JSON!]<"
             return 1
         fi
     fi
     if [ -z "$values" ]; then
-        logger "   >[No values found in $category!]< "
+        ui_print "   >[No values found in $category!]< "
         return 1
     fi
-    emoji_list=""
-    font_list=""
+    local list_build=""
+    values=$(echo "$values" | tr '\n' ' ')
+    for value in $values; do
+        list_build="$list_build$value,"
+    done
+    list_build="${list_build%,}"
     if [ "$category" = "Emoji" ]; then
-        for value in $values; do
-            emoji_list="$emoji_list $value,"
-        done
-        emoji_list="${emoji_list# }"
+        emoji_list="$list_build"
     else
-        for value in $values; do
-            font_list="$font_list $value,"
-        done
-        font_list="${font_list# }"
+        font_list="$list_build"
     fi
 }
 
 download_ef() {
-    local name="$1"
+    local url="$1"
     local output_path="$2"
-    local category="$selection_type"  
-    if [ -z "$name" ] || [ -z "$output_path" ]; then
-        logger "   >[Error: Missing parameters for download.]< "
+    if [ -z "$url" ] || [ -z "$output_path" ]; then
+        ui_print "   >[Error: Missing parameters for download.]< "
         return 1
     fi
-    if [ "$category" = "emoji" ]; then
-        base_url="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji"
-    else
-        base_url="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts"
-    fi
-    url="$base_url/$selected_item/$name"
-    logger "   >[Downloading from: $url]< "
-    if command -v curl >/dev/null 2>&1; then
-        curl -sL "$url" -o "$output_path"
-    elif command -v wget >/dev/null 2>&1; then
+    ui_print "   >[Downloading from: $url]< "
+    if command -v wget >/dev/null 2>&1; then
         wget -qO "$output_path" "$url"
     else
-        logger "   >[No downloader found (curl/wget).]< "
+        ui_print "   >[No downloader found (wget required).]< "
         return 1
     fi
     if [ -s "$output_path" ]; then
-        logger "   >[Successfully downloaded: $name]< "
+        ui_print "   >[Successfully downloaded]< "
         return 0
     else
-        logger "- Failed to download: $name"
+        ui_print "- Failed to download file."
+        rm -f "$output_path"
         return 1
     fi
-}
-
-mk_service() {
-    local root_type=$1
-    
-    if [ -f "$MODPATH/StylizeText.png" ]; then
-        su -c "mv \"$MODPATH/StylizeText.png\" /data/local/tmp/StylizeText_icon.png && chmod 644 /data/local/tmp/StylizeText_icon.png"
-    fi
-    
-    cat > "$MODPATH/service.sh" << EOF
-#!/system/bin/sh
-
-TMP_ICON="/data/local/tmp/StylizeText_icon.png"
-LOG_FILE="/cache/fontcraft.log"
-
-log_message() {
-    echo "\$(date '+%Y-%m-%d %I:%M:%S %p') - \$1" >> "\$LOG_FILE"
-}
-
-log_message "StylizeText service started"
-
-while [ "\$(getprop sys.boot_completed)" != "1" ]; do
-    sleep 20
-done
-
-log_message "Boot completed, starting main loop"
-
-REMOVE_FONTS() {
-    local DELETED=0
-    local file_count=0
-    local font_files=""
-
-    log_message "Checking for fonts to remove..."
-
-    if [ -d /data/fonts/config ]; then
-        font_files=\$(find /data/fonts/config -maxdepth 1 -type f -name "*.xml" 2>/dev/null)
-        if [ -n "\$font_files" ]; then
-            file_count=\$(echo "\$font_files" | wc -l)
-            echo "\$font_files" | while IFS= read -r file; do
-                rm -f "\$file"
-            done
-            log_message "Deleted \$file_count XML config files"
-            DELETED=1
-        fi
-    fi
-
-    if [ -d /data/fonts/files ]; then
-        font_files=\$(find /data/fonts/files -maxdepth 1 -type f \\( -name "*.ttf" -o -name "*.otf" \\) 2>/dev/null)
-        if [ -n "\$font_files" ]; then
-            file_count=\$(echo "\$font_files" | wc -l)
-            echo "\$font_files" | while IFS= read -r file; do
-                rm -f "\$file"
-            done
-            log_message "Deleted \$file_count font files directly in files directory"
-            DELETED=1
-        fi
-        
-        local folders=\$(find /data/fonts/files -maxdepth 1 -type d -name "~~*" 2>/dev/null)
-        if [ -n "\$folders" ]; then
-            echo "\$folders" | while IFS= read -r folder; do
-                if [ "\$folder" != "/data/fonts/files" ]; then
-                    local ttf_count=\$(find "\$folder" -maxdepth 1 -type f -name "*.ttf" 2>/dev/null | wc -l)
-                    local otf_count=\$(find "\$folder" -maxdepth 1 -type f -name "*.otf" 2>/dev/null | wc -l)
-                    local total_count=\$((ttf_count + otf_count))
-                    
-                    if [ \$total_count -gt 0 ]; then
-                        rm -rf "\$folder"
-                        local folder_name=\$(basename "\$folder")
-                        log_message "Deleted: '\$folder_name' (\$total_count fonts: \$ttf_count ttf, \$otf_count otf)"
-                        DELETED=1
-                    fi
-                fi
-            done
-        fi
-    fi
-
-    return \$DELETED
-}
-
-while true; do
-    REMOVE_FONTS
-    DELETED=\$?
-    
-    if [ \$DELETED -eq 1 ]; then
-        for i in 1 2 3 4 5 6 7 8 9 10; do
-            if [ -f "\$TMP_ICON" ]; then
-                su 2000 -c "cmd notification post -t \"$root_type\" -i file://\$TMP_ICON \"StylizeText\" \"StylizeText: Fonts/Emojis error fixed. Reboot recommended.\"" && break
-            else
-                su 2000 -c "cmd notification post -t \"$root_type\" \"StylizeText\" \"StylizeText: Fonts/Emojis error fixed. Reboot recommended.\"" && break
-            fi
-            sleep 1
-        done
-    fi
-    
-    sleep 5400
-done
-EOF
 }
 
 download_tools() {
-    if command -v curl >/dev/null 2>&1; then
-        curl -sL "$JSON_URL" -o "$JSON_PATH"
-    elif command -v wget >/dev/null 2>&1; then
+    if command -v wget >/dev/null 2>&1; then
+        ui_print "   >[Using wget downloader]< "
         wget -qO "$JSON_PATH" "$JSON_URL"
     else
-        logger "   >[❌ No downloader found (curl/wget).]< "
+        ui_print "   >[❌ No downloader found (wget required).]< "
         return 1
     fi
 
-    chmod +x "$jq"
+    if [ -d "$MODPATH/binaries" ]; then
+        chmod +x "$MODPATH"/binaries/*
+        ui_print "   >[✅ Set execute permissions for all binaries.]< "
+    fi
 
     if [ -s "$JSON_PATH" ] && [ -s "$jq" ]; then
-        logger "   >[✅ JSON and jq_tool downloaded successfully.]< "
+        ui_print "   >[✅ JSON and jq_tool downloaded successfully.]< "
     else
-        logger "-    >[❌ Failed to download required files.]< "
-        logger "-    >[⚠️ Try using a VPN or download the offline version of the module.]< "
+        ui_print "-    >[❌ Failed to download required files.]< "
+        ui_print "-    >[⚠️ Try using a VPN or download the offline version of the module.]< "
         abort "   >[❌ Installation aborted. Use the offline version.]< "
     fi
 }
