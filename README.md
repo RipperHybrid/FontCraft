@@ -1,64 +1,95 @@
-# FontCraft Pro
+# FontCraft
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Compatible%20with-Magisk%20%7C%20KernelSU%20%7C%20KernelSU--Next-blueviolet" alt="Compatibility Badge">
+  <img src="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/.github/resources/banner.png" width="60%" alt="FontCraft Banner">
+  <br>
+  <img src="https://img.shields.io/badge/Compatible%20with-Magisk%20%7C%20KernelSU%20%26%20Forks-blueviolet" alt="Compatibility Badge">
+  <br>
+  
+  <a href="https://github.com/RipperHybrid/FontCraft/releases/latest">
+    <img src="https://img.shields.io/github/v/release/RipperHybrid/FontCraft?label=Latest%20Release&logo=git&logoColor=white&color=18673F&labelColor=2E2E3F&style=flat" alt="Latest Release">
+    <img src="https://img.shields.io/github/license/RipperHybrid/FontCraft?label=License&logo=git&logoColor=white&color=18673F&labelColor=2E2E3F&style=flat" alt="License">
+  </a>
+  <br>
+  
+  <a href="https://github.com/RipperHybrid/FontCraft">
+    <img src="https://img.shields.io/github/commit-activity/t/RipperHybrid/FontCraft?label=Total%20Commits&logo=git&logoColor=white&color=18673F&labelColor=2E2E3F&style=flat" alt="Total Commits">
+  </a>
+  <a href="https://github.com/RipperHybrid/FontCraft/commits/main">
+    <img src="https://img.shields.io/github/last-commit/RipperHybrid/FontCraft?label=Last%20Commit&logo=git&logoColor=white&color=18673F&labelColor=2E2E3F&style=flat" alt="Last Commit">
+  </a>
+  <br>
+  
+  <a href="https://github.com/RipperHybrid/FontCraft/releases">
+    <img src="https://img.shields.io/github/downloads/RipperHybrid/FontCraft/total?label=Total%20Downloads&logo=github&logoColor=orange&color=18673F&labelColor=2E2E3F&style=flat" alt="Total Downloads">
+  </a>
 </p>
-<p align="center">
-  <img src="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/.github/resources/banner.png" width="60%" alt="Banner">
-</p>
 
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Orbitron&weight=500&pause=700&color=41F791&center=true&vCenter=true&width=935&height=70&lines=Stylish+fonts+%26+emojis+for;A+personalized+experience.)](https://git.io/typing-svg)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Orbitron&weight=500&pause=700&color=41F791&center=true&vCenter=true&width=935&height=70&lines=Now+featuring+a+full+WebUI!;Custom+Fonts,+Emojis,+and+Themes.;Native+KSU+Support.)](https://git.io/typing-svg)
 
-## 🚀 Features
-- Dynamic font & emoji selection  
-- Automatic updates from the repository  
-- One-click installation via **Magisk** or **KernelSU (KSU)**
-- Works on **most Android versions** (Same TTF usage across devices)
-- **Tested on Android 15 (Nothing OS)**
+## 🚀 Major Update: The WebUI Era
+**FontCraft Pro** now features a fully interactive **WebUI** for KernelSU users. Browse, download, and flash fonts with a modern, touch-friendly interface designed for seamless customization.
 
-## 📥 How It Works
-1. **Run the module** – It fetches the latest font list from the repository.
-2. **Browse available fonts/emojis** – A list is displayed for selection.
-3. **Select a font or emoji** – The required file is downloaded.
-4. **Installation** – The module applies the new font automatically.
-5. **Reboot & Enjoy** – Restart your device to see the changes.
+> **⚠️ Compatibility Note:** The Full WebUI is available on **KernelSU** and any **KSU Fork** that supports the module WebUI standard. Magisk users will use the classic Volume Key interface or simply re-flash the module to change settings.
 
-## 🕹️ Menu Navigation
-- Touch screen: Move forward (next option)
-- Volume Up:    Select current option
-- Volume Down:  Move backward (previous option)
+### ✨ Key Features
+* **Interactive Web Interface:** Browse the remote library visually with preview images (KSU & Forks Only).
+* **Hybrid Queue System:** Select a **Font** and an **Emoji** pack simultaneously and flash them in one go.
+* **Integrated File Selector:** Have your own `.ttf` file? Use the built-in storage navigator to browse and select local font files directly within the interface.
+* **Live Terminal Output:** Watch the installation process in real-time via the embedded terminal window.
+* **GMS Cleaner:** Built-in action to disable Google Play Services font syncing if it overrides your custom emojis.
+* **Theming Engine:** Choose your vibe with **Dark**, **Light**, and **Retro (Amber)** modes.
+* **Universal Compatibility:**
+    * ✅ **Magisk** (CLI Mode)
+    * ✅ **KernelSU & Compatible Forks** (WebUI Mode)
+    * ✅ **Android 15 (Tested on Nothing OS)**
+
+## 📥 How WebUI Works (KernelSU)
+1.  **Open the Module:** Launch the FontCraft WebUI from the "Modules" tab in your manager.
+2.  **Browse Library:** Switch between the **Emoji** and **Fonts** tabs to see available options from the cloud repository.
+3.  **Custom Import:** Use the "Custom Font" card to browse your internal storage and select any `.ttf` file using the integrated file picker.
+4.  **Queue & Flash:**
+    * Add your desired font/emoji to the queue.
+    * Hit **"Flash Module"**.
+    * The built-in terminal will generate the installation script, build the zip, and install it automatically.
+5.  **Reboot:** Restart your device to see the changes.
 
 ## 🛠 Requirements
-- Rooted device with **Magisk** or **KernelSU (KSU)**
-- Internet connection for font updates
-- Compatible with most **Android versions**
+- Rooted device.
+- **KernelSU** (or any KSU fork with WebUI support).
+- **Magisk** (Supported via standard Volume Key installation).
+- Internet connection (for fetching the online library).
 
 ## 📌 Installation
-1. Install FontCraft Pro via **Magisk** or **KernelSU (KSU)**.
-2. Run the module to fetch the latest fonts.
-3. Choose and install your preferred font/emoji.
-4. Reboot your device to apply changes.
-
-## 🔍 Font & Emoji Previews
-To view available fonts and emojis, check out **[Preview.md](Preview.md)**.
+1. Download the latest release zip.
+2. Install via your root manager.
+3. **For KSU Users:** You can open the UI immediately after flashing (no reboot needed to browse, only to apply).
+4. **For Magisk Users:** Follow the volume key prompts during installation. To change fonts later, simply flash the zip again.
 
 ## ❓ FAQ
 
-- **How to restore the default font?** Uninstall the module from Magisk/KSU to revert changes.
+**Q: How do I restore the default font?**
+A: Simply uninstall the module from your root manager and reboot.
 
-- **Does it work on all Android versions?** Yes, since Android uses the same TTF format. Tested on **Android 15 (Nothing OS)**.
+**Q: My emojis aren't showing up (Android 12+)?**
+A: There are two common reasons for this. Try these steps:
+1.  **Zygisk Next Users:** If you are using Zygisk Next 1.3.0+, you may need the `FontLoader` module fix. [Download Here](https://t.me/real5ec1cff/265).
+2.  **Google Override:** Google Play Services often forces its own fonts. Go to the Module Action button and run it. This will disable the GMS font provider and clear the cache.
 
-- **Will I lose changes after a system update?** Yes, you may need to reapply the font.
+**Q: Can I use my own font files?**
+A: Yes! Use the "Custom Font" or "Custom Emoji" card in the WebUI to navigate your internal storage and pick any `.ttf` file.
 
-- **What if my emojis aren't working?** If you are using **Zygisk Next 1.3.0** (or newer), its hiding features can conflict with font modules on Android 12+. You **must** install the separate `FontLoader` module to fix this. You can get it from a trusted source or from the official Zygisk Next post here: https://t.me/real5ec1cff/265
+**Q: Does this work on KSU forks (like KSU-Next)?**
+A: Yes, as long as the fork supports the WebUI standard, the interface will work perfectly.
 
 ## 👤 Author
 Developed by **AshBorn** – [@Ripper_Hybrid](https://t.me/Ripper_Hybrid)
 
 ## 🔗 Credits
-- **jq Binary** – [jqlang/jq/jqlang/jq)
+- **jq Binary** – [jq](https://jqlang.org)
+- **zip Binary** – [zip](https://infozip.sourceforge.net)
 - **Banner By** – [Adi](https://t.me/adiLohar) - [Banner Channel](https://t.me/WDableuW)
 
 ---
 
-> FontCraft Pro is designed to enhance your device with stylish fonts and emojis in a safe, user-friendly way. While every effort has been made to ensure reliability, please use this tool responsibly and always keep backups of important data.
+> **Disclaimer:** FontCraft Pro modifies system files (systemlessly). While safe, always ensure you have a backup of your ROM or a way to recover from bootloops before flashing custom modules.

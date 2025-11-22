@@ -1,0 +1,121 @@
+name: Reconfigure Fonts & Preview
+
+on:
+  push:
+    branches:
+      - Master
+    paths-ignore:
+      - "fonts.json"
+      - "Preview.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-json:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set Up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Generate Metadata (JSON + MD)
+        shell: python
+        env:
+          GIT_REPO: ${{ github.repository }}
+          GIT_REF: ${{ github.ref_name }}
+        run: |
+          import os
+          import json
+          from urllib.parse import quote
+
+          repo = os.environ.get("GIT_REPO")
+          branch = os.environ.get("GIT_REF")
+          base_url = f"https://raw.githubusercontent.com/{repo}/{branch}"
+          
+          repo_dir = os.getcwd()
+          output_json = os.path.join(repo_dir, "fonts.json")
+          output_md = os.path.join(repo_dir, "Preview.md")
+
+          data = {}
+          md_content = "## Emojis and Fonts Preview\n\n"
+          
+          allowed_extensions = {".ttf", ".otf"}
+          categories = ["Emoji", "Fonts"]
+
+          print(f"Scanning {repo} on branch {branch}...")
+
+          for category in sorted(categories):
+              category_path = os.path.join(repo_dir, category)
+              
+              if not os.path.isdir(category_path):
+                  continue
+
+              data[category] = {}
+              
+              for folder in sorted(os.listdir(category_path), key=str.lower):
+                  folder_path = os.path.join(category_path, folder)
+                  
+                  if os.path.isdir(folder_path):
+                      
+                      scan_fonts = [
+                          f for f in sorted(os.listdir(folder_path), key=str.lower) 
+                          if os.path.isfile(os.path.join(folder_path, f)) and f.endswith(tuple(allowed_extensions))
+                      ]
+                      
+                      files_list = []
+                      for f in scan_fonts:
+                          raw_url = f"{base_url}/{quote(f'{category}/{folder}/{f}')}"
+                          files_list.append({
+                              "filename": f,
+                              "download_url": raw_url
+                          })
+
+                      scan_imgs = [
+                          f for f in sorted(os.listdir(folder_path), key=str.lower) 
+                          if os.path.isfile(os.path.join(folder_path, f)) and f.endswith(".png")
+                      ]
+                      
+                      preview_url = None
+                      if scan_imgs:
+                          preview_url = f"{base_url}/{quote(f'{category}/{folder}/{scan_imgs[0]}')}"
+                          
+                          md_content += f"### {folder}\n"
+                          for img in scan_imgs:
+                              img_url = f"{base_url}/{quote(f'{category}/{folder}/{img}')}"
+                              md_content += f'- <img src="{img_url}" width="200px" alt="{folder}">\n'
+                          md_content += "\n"
+
+                      if files_list:
+                          data[category][folder] = {
+                              "preview": preview_url,
+                              "files": files_list
+                          }
+
+          with open(output_json, "w") as json_file:
+              json.dump(data, json_file, indent=2)
+              
+          with open(output_md, "w") as md_file:
+              md_file.write(md_content)
+          
+          print("fonts.json and Preview.md generated successfully.")
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "Ash"
+          git config --global user.email "ThawneRises@gmail.com"
+          
+          git add fonts.json Preview.md
+          
+          git commit -m "$(date +'%Y-%m-%d') - Auto-update Font metadata & Preview [skip ci]" || echo "No changes to commit"
+          
+          git push https://x-access-token:${{ secrets.FONT }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }} || echo "No changes to push"
+        env:
+          FONT: ${{ secrets.FONT }}

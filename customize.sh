@@ -6,8 +6,8 @@ JSON_PATH="$TMPDIR/fonts.json"
 both=false
 
 select_item() {
-    logger "###########################"
-    logger "- Select An Item"
+    ui_print "###########################"
+    ui_print "- Select An Item"
     items="$selection_list"
     set -- $(echo "$items" | sed 's/,/ /g')
     count=$#
@@ -15,7 +15,7 @@ select_item() {
     while :; do
         i=1
         for item; do
-            [ $i -eq $pos ] && logger "   >[$item]<"
+            [ $i -eq $pos ] && ui_print "   >[$item]<"
             i=$((i+1))
         done
         $VKSEL
@@ -36,16 +36,16 @@ select_item() {
     done
 
     if [ -z "$selected_item" ]; then
-        logger "   >[Error: No item selected.]<"
+        ui_print "   >[Error: No item selected.]<"
         exit 1
     fi
-    logger "   >[Selected $selected_item $selection_type...]<"
+    ui_print "   >[Selected $selected_item $selection_type...]<"
     if [ "$selection_type" = "font" ]; then
         handle_selection "Fonts" "$selected_item"
     elif [ "$selection_type" = "emoji" ]; then
         handle_selection "Emoji" "$selected_item"
     else
-        logger "   >[Error: Invalid selection type.]<"
+        ui_print "   >[Error: Invalid selection type.]<"
         exit 1
     fi
 }
@@ -53,28 +53,43 @@ select_item() {
 handle_selection() {
     category="$1"
     selected_item="$2"
-    logger "   >[Extracting available versions for: $selected_item]<"
+    ui_print "   >[Extracting available versions for: $selected_item]<"
+    
     extract_info "$JSON_PATH" "$category" "$selected_item"
+    if [ $? -ne 0 ]; then
+        ui_print "   >[Aborting: Could not get file list for $selected_item]<"
+        exit 1
+    fi
+
     if [ "$category" = "Fonts" ]; then
         item_list="$font_list"
     else
         item_list="$emoji_list"
     fi
-    item_list=$(echo "$item_list" | sed 's/,$//')
+    
+    if [ -z "$item_list" ]; then
+        ui_print "   >[Error: Item list is empty!]<"
+        exit 1
+    fi
+
     set -- $(echo "$item_list" | sed 's/,/ /g')
     count=$#
-    if [ "$count" -eq 1 ]; then
+    
+    if [ "$count" -eq 0 ]; then
+        ui_print "   >[Error: No files found!]<"
+        exit 1
+    elif [ "$count" -eq 1 ]; then
         selected_version="$1"
-        logger "   >[Auto-selecting $category: $selected_version]<"
+        ui_print "   >[Auto-selecting $category: $selected_version]<"
     else
-        logger "###########################"
-        logger "- Select $category Version"
-        logger "###########################"
+        ui_print "###########################"
+        ui_print "- Select $category Version"
+        ui_print "###########################"
         pos=1
         while :; do
             i=1
             for item; do
-                [ $i -eq $pos ] && logger "   >[$item]<"
+                [ $i -eq $pos ] && ui_print "   >[$item]<"
                 i=$((i+1))
             done
             $VKSEL
@@ -93,29 +108,41 @@ handle_selection() {
             i=$((i+1))
         done
     fi
+    
     if [ -z "$selected_version" ]; then
-        logger "   >[Error: No version selected!]<"
+        ui_print "   >[Error: No version selected!]<"
         exit 1
     fi
-    logger "   >[Downloading $category: $selected_version]<"
-    item_path="$TMPDIR/${selected_version}.ttf"
-    download_ef "$selected_version" "$item_path"
+    
+    ui_print "   >[Fetching download link...]<"
+    download_url=$($jq -r --arg cat "$category" --arg key "$selected_item" --arg file "$selected_version" \
+        '.[$cat][$key].files[] | select(.filename == $file) | .download_url' "$JSON_PATH")
+        
+    if [ -z "$download_url" ] || [ "$download_url" = "null" ]; then
+        ui_print "   >[Error: Download URL not found in JSON!]<"
+        exit 1
+    fi
+    
+    ui_print "   >[Downloading $category: $selected_version]<"
+    item_path="$TMPDIR/${selected_version}"
+    download_ef "$download_url" "$item_path"
+    
     if [ ! -f "$item_path" ]; then
-        logger "   >[Error: $category download failed!]<"
+        ui_print "   >[Error: $category download failed!]<"
         exit 1
     fi
-    logger "   >[Installing $category: $selected_version]<"
+    ui_print "   >[Installing $category: $selected_version]<"
     install_font "$category" "$item_path" "$MODPATH"
 }
 
 select_mode() {
-    logger "###########################"
-    logger "- Select A Mode"
-    logger "1. Emojis"
-    logger "2. Fonts"
-    logger "3. Both"
-    logger "4. Exit"
-    logger "###########################"
+    ui_print "###########################"
+    ui_print "- Select A Mode"
+    ui_print "1. Emojis"
+    ui_print "2. Fonts"
+    ui_print "3. Both"
+    ui_print "4. Exit"
+    ui_print "###########################"
 
     modes="Emojis Fonts Both Exit"
     set -- $modes
@@ -124,7 +151,7 @@ select_mode() {
     while :; do
         i=1
         for mode in $modes; do
-            [ $i -eq $pos ] && logger "   >[$i. $mode]< " || :
+            [ $i -eq $pos ] && ui_print "   >[$i. $mode]< " || :
             i=$((i+1))
         done
         $VKSEL
@@ -140,7 +167,7 @@ select_mode() {
 
     case "$pos" in
         1)
-            logger "   >[Selected Mode: Emojis]<"
+            ui_print "   >[Selected Mode: Emojis]<"
             extract_info "$JSON_PATH" Emoji
             selection_list="$emoji_list"
             selection_type="emoji"
@@ -148,7 +175,7 @@ select_mode() {
             updesc "📥 Applied $emoji font injection" "$MODPATH/module.prop"
             ;;
         2)
-            logger "   >[Selected Mode: Fonts]<"
+            ui_print "   >[Selected Mode: Fonts]<"
             extract_info "$JSON_PATH" Fonts
             selection_list="$font_list"
             selection_type="font"
@@ -156,15 +183,15 @@ select_mode() {
             updesc "📥 Applied $font font injection" "$MODPATH/module.prop"
             ;;
         3)
-            logger "   >[Selected Mode: Both]<"
-            logger "   >[Select A Font]<"
+            ui_print "   >[Selected Mode: Both]<"
+            ui_print "   >[Select A Font]<"
             extract_info "$JSON_PATH" Fonts
             selection_list="$font_list"
             selection_type="font"
             select_item
-            logger "###########################"
-            logger "   >[Selected Mode: Both]<"
-            logger "   >[Select An Emoji]<"
+            ui_print "###########################"
+            ui_print "   >[Selected Mode: Both]<"
+            ui_print "   >[Select An Emoji]<"
             extract_info "$JSON_PATH" Emoji
             selection_list="$emoji_list"
             selection_type="emoji"
@@ -172,27 +199,24 @@ select_mode() {
             updesc "📥 Injected $font font and $emoji emoji support" "$MODPATH/module.prop"
             ;;
         4)
-            logger "   >[Exiting...]<"
+            ui_print "   >[Exiting...]<"
             abort
             ;;
         *)
-            logger "   >[Invalid Selection, Aborting.]<"
+            ui_print "   >[Invalid Selection, Aborting.]<"
             exit 1
             ;;
     esac
 }
 
-if [ -f "$log_file" ]; then
-rm -f "$log_file"
-fi
-logger "####################################" 
-logger "   >[Magisk & KernelSU Compatible]<"  
-logger "####################################" 
-logger "   >[🔄 Downloading latest font info JSON...]<" && download_tools
-logger "#############################################"
-logger "             Menu Navigation:                     "
-logger "  • Touch screen: Move forward (next option)"
-logger "  • Volume Up:    Select current option"
-logger "  • Volume Down:  Move backward (previous option)"
-logger "#############################################"
+ui_print "####################################" 
+ui_print "   >[Magisk & KernelSU Compatible]<"  
+ui_print "####################################" 
+ui_print "   >[🔄 Downloading latest font info JSON...]<" && download_tools
+ui_print "#############################################"
+ui_print "             Menu Navigation:                     "
+ui_print "  • Touch screen: Move forward (next option)"
+ui_print "  • Volume Up:    Select current option"
+ui_print "  • Volume Down:  Move backward (previous option)"
+ui_print "#############################################"
 select_mode
