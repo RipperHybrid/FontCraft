@@ -207,27 +207,32 @@ class FontCraftUI {
                 if(repoDisplay) repoDisplay.innerText = `Testing: ${mirror.repo}`;
 
                 try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-                    const testResp = await fetch(mirror.url, { 
-                        method: 'HEAD', 
-                        signal: controller.signal,
-                        cache: "no-store"
-                    });
-                    
-                    clearTimeout(timeoutId);
-
-                    if (testResp.ok) {
+                    if (typeof ksu !== 'undefined') {
+                        await this.ksuExec(`${BB} wget -q --spider --no-check-certificate --timeout=5 "${mirror.url}"`);
+                        
                         this.activeRepoName = mirror.repo;
                         this.updateRepoDisplay();
-                        if(typeof ksu !== 'undefined') ksu.toast(`✅ Connected: ${mirror.repo}`);
+                        ksu.toast(`✅ Connected: ${mirror.repo}`);
                         return mirror.url;
                     } else {
-                        if(typeof ksu !== 'undefined') ksu.toast(`❌ Failed: ${mirror.repo} (${testResp.status})`);
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 10000);
+                        const testResp = await fetch(mirror.url, { 
+                            method: 'HEAD', 
+                            signal: controller.signal,
+                            cache: "no-store"
+                        });
+                        clearTimeout(timeoutId);
+
+                        if (testResp.ok) {
+                            this.activeRepoName = mirror.repo;
+                            this.updateRepoDisplay();
+                            return mirror.url;
+                        } else {
+                            throw new Error("Fetch failed");
+                        }
                     }
                 } catch (err) {
-                    if(typeof ksu !== 'undefined') ksu.toast(`❌ Unreachable: ${mirror.repo}`);
                 }
             }
         } catch (e) {
@@ -258,11 +263,20 @@ class FontCraftUI {
             this.activeJsonUrl = await this.getWorkingMirror();
             
             loader.querySelector('p').innerText = "Loading Fonts...";
-            const response = await fetch(this.activeJsonUrl);
             
-            if(!response.ok) throw new Error("Failed to fetch JSON");
-            
-            this.data = await response.json();
+            if (typeof ksu !== 'undefined') {
+                const jsonStr = await this.ksuExec(`${BB} wget -q --no-check-certificate -O - "${this.activeJsonUrl}"`);
+                try {
+                    this.data = JSON.parse(jsonStr);
+                } catch(e) {
+                    throw new Error("Invalid JSON data received via shell");
+                }
+            } else {
+                const response = await fetch(this.activeJsonUrl);
+                if(!response.ok) throw new Error("Failed to fetch JSON");
+                this.data = await response.json();
+            }
+
             loader.style.display = 'none';
             this.renderGrid(this.currentCategory);
             
@@ -401,10 +415,6 @@ class FontCraftUI {
             const sizeCmd = `${BB} wget --spider --server-response "${url}" 2>&1 | grep -i "Content-Length" | tail -n 1 | awk '{print $2}' | tr -d '\\r'`;
             const sizeOutput = await this.ksuExec(sizeCmd);
             expectedBytes = parseInt(sizeOutput.trim());
-
-            if (isNaN(expectedBytes) || expectedBytes <= 0) {
-            } else {
-            }
 
             ksu.toast(`Downloading ${filename}...`);
             await this.ksuExec(`rm -f "${destPath}"`);
