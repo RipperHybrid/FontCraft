@@ -1,8 +1,6 @@
 #!/sbin/sh
 
 . "$MODPATH"/ffun.sh || { echo "Error: Failed to source ffun.sh"; exit 1; }
-JSON_URL="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/fonts.json" 
-JSON_PATH="$TMPDIR/fonts.json" 
 both=false
 
 select_item() {
@@ -214,7 +212,7 @@ ui_print "   >[Magisk & KernelSU Compatible]<"
 ui_print "####################################" 
 ui_print "   >[🔄 Downloading latest font info JSON...]<" && download_tools
 ui_print "#############################################"
-ui_print "             Menu Navigation:                     "
+ui_print "              Menu Navigation:                     "
 ui_print "  • Touch screen: Move forward (next option)"
 ui_print "  • Volume Up:    Select current option"
 ui_print "  • Volume Down:  Move backward (previous option)"
