@@ -1,4 +1,4 @@
-name: Reconfigure Fonts & Preview
+name: Reconfigure Preview & Sync
 
 on:
   push:
@@ -13,13 +13,14 @@ permissions:
   contents: write
 
 jobs:
-  update-json:
+  update-and-sync:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Set Up Python
         uses: actions/setup-python@v5
@@ -107,7 +108,7 @@ jobs:
           
           print("fonts.json and Preview.md generated successfully.")
 
-      - name: Commit and Push Changes
+      - name: Commit and Push Changes to GitHub
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -119,3 +120,12 @@ jobs:
           git push https://x-access-token:${{ secrets.FONT }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }} || echo "No changes to push"
         env:
           FONT: ${{ secrets.FONT }}
+
+      - name: Sync to GitLab
+        env:
+          TARGET_REPO: "gitlab.com/RipperHybrid/FontCraft.git"
+        run: |
+          git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@${{ env.TARGET_REPO }}
+          
+          git push gitlab --all --force
+          git push gitlab --tags --force

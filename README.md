@@ -75,6 +75,16 @@ I believe in full transparency for root modules. **Nothing in this project is ob
     * ✅ **KernelSU & Compatible Forks** (WebUI Mode)
     * ✅ **Android 15 (Tested on Nothing OS)**
 
+---
+
+## 🎨 Gallery & Asset Showcase
+
+Want to see exactly what's available before you install? We maintain an automatically updated visual catalog of every font and emoji pack currently in the remote library.
+
+> **[👉 Click here to view the Full Font & Emoji Preview](Preview.md)**
+
+---
+
 ## 🚀 Roadmap (To-Do)
 I am actively working on expanding FontCraft. Here is what is coming next:
 
