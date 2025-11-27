@@ -1,0 +1,348 @@
+{
+  "Emoji": {
+    "Facebook": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/Facebook/FaceBookU15.png",
+      "files": [
+        {
+          "filename": "FaceBookU15.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/Facebook/FaceBookU15.ttf"
+        }
+      ]
+    },
+    "FluentUI": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/FluentUI/FluentUI3D_U15.1.png",
+      "files": [
+        {
+          "filename": "FluentUI3D_U15.1.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/FluentUI/FluentUI3D_U15.1.ttf"
+        }
+      ]
+    },
+    "Ios18.4": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/Ios18.4/iOS18.4%28Unicode16%29.png",
+      "files": [
+        {
+          "filename": "iOS18.4(Unicode16).ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/Ios18.4/iOS18.4%28Unicode16%29.ttf"
+        }
+      ]
+    },
+    "JoyPixel": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/JoyPixel/JoyPixelv10.png",
+      "files": [
+        {
+          "filename": "JoyPixelv10.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/JoyPixel/JoyPixelv10.ttf"
+        }
+      ]
+    },
+    "LG": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/LG/LG%28u14%29.png",
+      "files": [
+        {
+          "filename": "LG(u14).ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/LG/LG%28u14%29.ttf"
+        }
+      ]
+    },
+    "SamsungOneUi_beta8": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/SamsungOneUi_beta8/Samsung_OneUi6_beta8_u15.1.png",
+      "files": [
+        {
+          "filename": "Samsung_OneUi6_beta8_u15.1.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/SamsungOneUi_beta8/Samsung_OneUi6_beta8_u15.1.ttf"
+        }
+      ]
+    },
+    "SamsungOneUi_Xmas": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/SamsungOneUi_Xmas/SamsungOneUI4_Xmas.png",
+      "files": [
+        {
+          "filename": "SamsungOneUI4_Xmas.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/SamsungOneUi_Xmas/SamsungOneUI4_Xmas.ttf"
+        }
+      ]
+    },
+    "Whatsapp": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/Whatsapp/WhatsApp2.25.9.78.png",
+      "files": [
+        {
+          "filename": "WhatsApp2.25.9.78.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Emoji/Whatsapp/WhatsApp2.25.9.78.ttf"
+        }
+      ]
+    }
+  },
+  "Fonts": {
+    "Ablax": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Ablax/Ablax.png",
+      "files": [
+        {
+          "filename": "Ablax.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Ablax/Ablax.ttf"
+        }
+      ]
+    },
+    "Accuratist": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Accuratist/Accuratist.png",
+      "files": [
+        {
+          "filename": "Accuratist.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Accuratist/Accuratist.ttf"
+        }
+      ]
+    },
+    "ActionMan": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/ActionMan/ActionMan.png",
+      "files": [
+        {
+          "filename": "ActionMan.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/ActionMan/ActionMan.ttf"
+        }
+      ]
+    },
+    "Beauty": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Beauty/Beauty.png",
+      "files": [
+        {
+          "filename": "Beauty.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Beauty/Beauty.ttf"
+        }
+      ]
+    },
+    "Biko": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Biko/Biko.png",
+      "files": [
+        {
+          "filename": "Biko.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Biko/Biko.ttf"
+        }
+      ]
+    },
+    "Brandayolq": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Brandayolq/Brandayolq.png",
+      "files": [
+        {
+          "filename": "Brandayolq.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Brandayolq/Brandayolq.ttf"
+        }
+      ]
+    },
+    "Cagliostro": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Cagliostro/Cagliostro.png",
+      "files": [
+        {
+          "filename": "Cagliostro.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Cagliostro/Cagliostro.ttf"
+        }
+      ]
+    },
+    "Chococooky": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Chococooky/Chococooky.png",
+      "files": [
+        {
+          "filename": "Chococooky.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Chococooky/Chococooky.ttf"
+        }
+      ]
+    },
+    "Cocon": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Cocon/Cocon.png",
+      "files": [
+        {
+          "filename": "Cocon.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Cocon/Cocon.ttf"
+        }
+      ]
+    },
+    "ComicBook": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/ComicBook/ComicBook.png",
+      "files": [
+        {
+          "filename": "ComicBook.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/ComicBook/ComicBook.ttf"
+        }
+      ]
+    },
+    "ComingSoon": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/ComingSoon/ComingSoon.png",
+      "files": [
+        {
+          "filename": "ComingSoon.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/ComingSoon/ComingSoon.ttf"
+        }
+      ]
+    },
+    "Cooljazz": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Cooljazz/Cooljazz.png",
+      "files": [
+        {
+          "filename": "Cooljazz.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Cooljazz/Cooljazz.ttf"
+        }
+      ]
+    },
+    "CoolStory": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/CoolStory/CoolStory.png",
+      "files": [
+        {
+          "filename": "CoolStory.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/CoolStory/CoolStory.ttf"
+        }
+      ]
+    },
+    "EvolveSans": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/EvolveSans/EvolveSans.png",
+      "files": [
+        {
+          "filename": "EvolveSans.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/EvolveSans/EvolveSans.ttf"
+        }
+      ]
+    },
+    "Exotwo": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Exotwo/Exotwo.png",
+      "files": [
+        {
+          "filename": "ExoTwo.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Exotwo/ExoTwo.ttf"
+        }
+      ]
+    },
+    "Flow": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Flow/Flow.png",
+      "files": [
+        {
+          "filename": "Flow.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Flow/Flow.ttf"
+        }
+      ]
+    },
+    "GoogleSans": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/GoogleSans/Google_Sans.png",
+      "files": [
+        {
+          "filename": "GoogleSans.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/GoogleSans/GoogleSans.ttf"
+        }
+      ]
+    },
+    "GoogleSansFlex": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/GoogleSansFlex/Google_Sans_Flex.png",
+      "files": [
+        {
+          "filename": "GoogleSansFlex.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/GoogleSansFlex/GoogleSansFlex.ttf"
+        }
+      ]
+    },
+    "Ios": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Ios/Ios.png",
+      "files": [
+        {
+          "filename": "Ios.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Ios/Ios.ttf"
+        }
+      ]
+    },
+    "Marko": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Marko/Marko.png",
+      "files": [
+        {
+          "filename": "Marko.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Marko/Marko.ttf"
+        }
+      ]
+    },
+    "Marvel": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Marvel/Marvel.png",
+      "files": [
+        {
+          "filename": "Marvel.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Marvel/Marvel.ttf"
+        }
+      ]
+    },
+    "Ndot": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Ndot/Ndot.png",
+      "files": [
+        {
+          "filename": "Ndot.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Ndot/Ndot.ttf"
+        }
+      ]
+    },
+    "Odin": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Odin/Odin.png",
+      "files": [
+        {
+          "filename": "Odin.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Odin/Odin.ttf"
+        }
+      ]
+    },
+    "Polobrush": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Polobrush/Polobrush.png",
+      "files": [
+        {
+          "filename": "Polobrush.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Polobrush/Polobrush.ttf"
+        }
+      ]
+    },
+    "ReemKufi": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/ReemKufi/ReemKufi.png",
+      "files": [
+        {
+          "filename": "ReemKufi.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/ReemKufi/ReemKufi.ttf"
+        }
+      ]
+    },
+    "Rosemary": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Rosemary/Rosemary.png",
+      "files": [
+        {
+          "filename": "Rosemary.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Rosemary/Rosemary.ttf"
+        }
+      ]
+    },
+    "SiswadiArchitect": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/SiswadiArchitect/SiswadiArchitect.png",
+      "files": [
+        {
+          "filename": "SiswadiArchitect.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/SiswadiArchitect/SiswadiArchitect.ttf"
+        }
+      ]
+    },
+    "Storopia": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Storopia/Storopia.png",
+      "files": [
+        {
+          "filename": "Storopia.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/Storopia/Storopia.ttf"
+        }
+      ]
+    },
+    "TheConfession": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/TheConfession/TheConfession.png",
+      "files": [
+        {
+          "filename": "TheConfession.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/TheConfession/TheConfession.ttf"
+        }
+      ]
+    },
+    "WaltDisney": {
+      "preview": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/WaltDisney/WaltDisney.png",
+      "files": [
+        {
+          "filename": "WaltDisney.ttf",
+          "download_url": "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/Fonts/WaltDisney/WaltDisney.ttf"
+        }
+      ]
+    }
+  }
+}
