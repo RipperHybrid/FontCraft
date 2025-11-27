@@ -109,12 +109,12 @@ jobs:
 
       - name: Commit and Push Changes
         run: |
-          git config --global user.name "Ash"
-          git config --global user.email "ThawneRises@gmail.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
           git add fonts.json Preview.md
           
-          git commit -m "$(date +'%Y-%m-%d') - Auto-update Font metadata & Preview [skip ci]" || echo "No changes to commit"
+          git commit -m "Auto-update Font metadata & Preview [skip ci]" || echo "No changes to commit"
           
           git push https://x-access-token:${{ secrets.FONT }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }} || echo "No changes to push"
         env:

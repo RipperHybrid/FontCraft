@@ -56,10 +56,6 @@ body {
     overflow-x: hidden;
 }
 
-body.no-scroll {
-    overflow: hidden;
-}
-
 .app {
     min-height: 100vh;
     display: flex;
@@ -276,15 +272,13 @@ body.no-scroll {
     align-items: center; z-index: 1000; opacity: 0; transition: opacity 0.3s;
 }
 .modal-overlay.active { display: flex; opacity: 1; }
-
-.modal-overlay.locked { 
-    cursor: wait;
-}
+.modal-overlay.locked { cursor: wait; }
 
 .modal-box {
     background: var(--bg-secondary); width: 90%; max-width: 400px;
     border-radius: 12px; border: 1px solid var(--border);
     transform: scale(0.9); transition: transform 0.3s;
+    pointer-events: auto;
 }
 .modal-overlay.active .modal-box { transform: scale(1); }
 
@@ -427,6 +421,7 @@ body.no-scroll {
     color: var(--text-secondary);
 }
 
+
 #file-selector-list-wrapper {
     padding: 0 10px 10px 10px;
 }
@@ -480,4 +475,15 @@ body.no-scroll {
 }
 .error-files {
     color: var(--error);
+}
+
+body.modal-open {
+    overflow: hidden !important;
+    height: 100vh;
+}
+
+body.modal-open .app {
+    pointer-events: none !important;
+    user-select: none;
+    filter: brightness(0.7);
 }

@@ -1,8 +1,8 @@
 id=StylizeText
 name=FontCraft
-version=v5.4
-versionCode=9
+version=v5.5
+versionCode=10
 author=AshBorn (@Ripper_Hybrid)
-updateJson=https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/update.json
-banner=https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/.github/resources/banner.png
+updateJson=https://fontcraft.pages.dev/update.json
+banner=https://fontcraft.pages.dev/banner.png
 description=Stylish fonts & emojis for a personalized experience.
