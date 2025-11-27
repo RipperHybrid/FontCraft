@@ -4,7 +4,6 @@ set -x
 font=none
 emoji=none
 jq="$MODPATH/binaries/jq"
-JSON_URL="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/fonts.json" 
 JSON_PATH="$TMPDIR/fonts.json" 
 
 chooseport() {
@@ -128,10 +127,9 @@ install_font() {
 }
 
 extract_info() {
-    local file="$1"
-    local category="$2"
-    local input="$3"
-    local values
+    file="$1"
+    category="$2"
+    input="$3"
     emoji_list=""
     font_list=""
     if [ -z "$file" ]; then
@@ -163,7 +161,7 @@ extract_info() {
         ui_print "   >[No values found in $category!]< "
         return 1
     fi
-    local list_build=""
+    list_build=""
     values=$(echo "$values" | tr '\n' ' ')
     for value in $values; do
         list_build="$list_build$value,"
@@ -177,48 +175,120 @@ extract_info() {
 }
 
 download_ef() {
-    local url="$1"
-    local output_path="$2"
+    url="$1"
+    output_path="$2"
+    
     if [ -z "$url" ] || [ -z "$output_path" ]; then
         ui_print "   >[Error: Missing parameters for download.]< "
         return 1
     fi
-    ui_print "   >[Downloading from: $url]< "
-    if command -v wget >/dev/null 2>&1; then
-        wget -qO "$output_path" "$url"
-    else
-        ui_print "   >[No downloader found (wget required).]< "
+
+    if ! command -v wget >/dev/null 2>&1; then
+        ui_print "   >[Error: wget not found!]< "
         return 1
     fi
+
+    ui_print "   >[Downloading: $(basename "$output_path")]< "
+    
+    wget --no-check-certificate -O "$output_path" "$url"
+    wget_status=$?
+
+    if [ $wget_status -ne 0 ]; then
+        ui_print "   >[Download failed with error code: $wget_status]< "
+        rm -f "$output_path"
+        return 1
+    fi
+
     if [ -s "$output_path" ]; then
         ui_print "   >[Successfully downloaded]< "
         return 0
     else
-        ui_print "- Failed to download file."
+        ui_print "   >[Error: Downloaded file is empty.]< "
         rm -f "$output_path"
         return 1
     fi
 }
 
-download_tools() {
-    if command -v wget >/dev/null 2>&1; then
-        ui_print "   >[Using wget downloader]< "
-        wget -qO "$JSON_PATH" "$JSON_URL"
-    else
-        ui_print "   >[❌ No downloader found (wget required).]< "
-        return 1
+get_working_mirror() {
+    mirrors_url="https://fontcraft.pages.dev/mirrors.json"
+    mirrors_json=""
+    test_url=""
+    
+    ui_print "   >[🔍 Fetching mirror list...]< "
+    
+    if ! command -v wget >/dev/null 2>&1; then
+        ui_print "   >[⚠️ wget not found, using default mirror]< "
+        JSON_URL="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/fonts.json"
+        return 0
     fi
 
+    mirrors_json=$(wget -T 10 -q -O - "$mirrors_url" 2>/dev/null)
+    
+    if [ -z "$mirrors_json" ]; then
+        ui_print "   >[⚠️ Failed to fetch mirrors.json, using default mirror]< "
+        JSON_URL="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/fonts.json"
+        return 0
+    fi
+    
+    ui_print "   >[🧪 Testing mirrors for availability...]< "
+    
+    mirror_count=$(echo "$mirrors_json" | $jq -r '.mirrors | length' 2>/dev/null)
+    
+    if [ -z "$mirror_count" ] || [ "$mirror_count" = "null" ]; then
+        ui_print "   >[⚠️ Invalid mirrors.json format, using default mirror]< "
+        JSON_URL="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/fonts.json"
+        return 0
+    fi
+    
+    i=0
+    while [ $i -lt "$mirror_count" ]; do
+        test_url=$(echo "$mirrors_json" | $jq -r --argjson idx "$i" '.mirrors[$idx].url' 2>/dev/null)
+        repo=$(echo "$mirrors_json" | $jq -r --argjson idx "$i" '.mirrors[$idx].repo' 2>/dev/null)
+        
+        if [ -z "$test_url" ] || [ "$test_url" = "null" ]; then
+            i=$((i + 1))
+            continue
+        fi
+        
+        ui_print "   >🔃 [Testing mirror $((i + 1)): $repo]< "
+        
+        if wget -T 10 -q --spider "$test_url" >/dev/null 2>&1; then
+            ui_print "   >[✅ Mirror $((i + 1)) is working! Using: $repo]< "
+            JSON_URL="$test_url"
+            return 0
+        else
+            ui_print "   >[❌ Mirror $((i + 1)): $repo failed]< "
+        fi
+        
+        i=$((i + 1))
+    done
+    
+    ui_print "   >[⚠️ All mirrors failed, using default fallback]< "
+    JSON_URL="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/fonts.json"
+    return 1
+}
+
+download_tools() {
     if [ -d "$MODPATH/binaries" ]; then
         chmod +x "$MODPATH"/binaries/*
         ui_print "   >[✅ Set execute permissions for all binaries.]< "
     fi
 
+    get_working_mirror
+    
+    if command -v wget >/dev/null 2>&1; then
+        ui_print "   >[🛡️ Using wget downloader]< "
+        wget --no-check-certificate -qO "$JSON_PATH" "$JSON_URL"
+    else
+        ui_print "   >[❌ No downloader found (wget required).]< "
+        return 1
+    fi
+
     if [ -s "$JSON_PATH" ] && [ -s "$jq" ]; then
         ui_print "   >[✅ JSON and jq_tool downloaded successfully.]< "
     else
-        ui_print "-    >[❌ Failed to download required files.]< "
-        ui_print "-    >[⚠️ Try using a VPN or download the offline version of the module.]< "
+        ui_print "    >[❌ Failed to download required files.]< "
+        ui_print "    >[⚠️ Try using a VPN or download the offline version of the module.]< "
         abort "   >[❌ Installation aborted. Use the offline version.]< "
     fi
 }
