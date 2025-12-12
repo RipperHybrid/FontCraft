@@ -907,15 +907,17 @@ class FontCraftUI {
             this.currentFilePath = newPath;
             this.updateFileBrowserPath();
             await this.listFilesInPath(this.currentFilePath);
-        } else this.closeCustomFilePicker();
+        } else {
+            this.closeCustomFilePicker();
+        }
     }
-}
 
     async doReboot() {
         const btn = document.querySelector('.term-btn.reboot');
         if (typeof ksu !== 'undefined') ksu.toast("🔃 Rebooting...");
         await this.ksuExec('su -c "reboot"');
     }
+}
 
 window.switchTab = (cat) => window.fontUI.renderGrid(cat);
 window.fontUI = new FontCraftUI();
