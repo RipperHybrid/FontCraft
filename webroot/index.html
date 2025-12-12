@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FontCraft</title>
     <link rel="stylesheet" href="style.css">
-    <script src="icons.js"></script>
+    <script src="js/icons.js"></script> 
+    <script type="module" src="js/main.js"></script>
 </head>
 <body>
     <div class="app">
@@ -44,6 +45,7 @@
             </div>
         </footer>
     </div>
+
     <div id="installModal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">
@@ -57,6 +59,7 @@
             </div>
         </div>
     </div>
+
     <div id="clearSelectionModal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">
@@ -72,6 +75,22 @@
             </div>
         </div>
     </div>
+
+    <div id="confirmationModal" class="modal-overlay">
+        <div class="modal-box curvy-modal">
+            <div class="modal-header">
+                <h3 id="confTitle">Confirmation</h3>
+            </div>
+            <div class="modal-content">
+                <p id="confDescription"></p>
+                <div class="mtf-actions">
+                    <button id="confYesBtn" class="mtf-btn yes-btn">Yes</button>
+                    <button id="confNoBtn" class="mtf-btn no-btn">No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="terminalModal" class="modal-overlay">
         <div class="modal-box terminal-box">
             <div class="modal-header">
@@ -80,9 +99,26 @@
             </div>
             <div class="modal-content terminal-wrapper">
                 <pre id="terminalOutput">Waiting for command...</pre>
+                <div id="termActionButtons" class="term-actions" style="display:none;"></div>
             </div>
         </div>
     </div>
+
+    <div id="mtfModal" class="modal-overlay">
+        <div class="modal-box curvy-modal">
+            <div class="modal-header">
+                <h3 id="mtfTitle"></h3>
+            </div>
+            <div class="modal-content">
+                <p id="mtfDescription"></p>
+                <div class="mtf-actions">
+                    <button id="mtfYesBtn" class="mtf-btn yes-btn" onclick="window.fontUI.doSoftReboot()"></button>
+                    <button id="mtfNoBtn" class="mtf-btn no-btn" onclick="window.fontUI.closeMtfModal()"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="fileSelectorModal" class="modal-overlay">
         <div class="modal-box file-browser-box">
             <div class="modal-header file-selector-header">
@@ -95,6 +131,7 @@
             </div>
         </div>
     </div>
+
     <div id="settingsModal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">
@@ -150,6 +187,7 @@
             </div>
         </div>
     </div>
+
     <div id="debugModal" class="modal-overlay">
         <div class="modal-box terminal-box">
             <div class="modal-header">
@@ -164,6 +202,5 @@
             </div>
         </div>
     </div>
-    <script src="script.js"></script>
 </body>
 </html>

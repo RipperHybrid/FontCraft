@@ -1,22 +1,11 @@
-const MIRRORS_URL = "https://fontcraft.pages.dev/mirrors.json";
-const DEFAULT_JSON_URL = "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/fonts.json";
-const TEMPLATE_URL = "https://fontcraft.pages.dev/template.zip";
-const TEMP_DIR = "/data/local/tmp/fontcraft_cache";
-const BUILD_DIR = "/data/local/tmp/fontcraft_build";
-const STORAGE_ROOT = "Start_At_Volume_List";
-let ROOT_BIN = null;
-let ROOT_MANAGER = null;
-let BB = null;
-let ROOT_CMD = null;
-let ZIP_BIN = null;
-let INSTALL_ARGS = "module install";
-const MOD_BIN = "/data/adb/modules/StylizeText/binaries";
-const SYSTEM_FONTS = ["Roboto-Regular.ttf", "RobotoStatic-Regular.ttf", "RobotoFlex-Regular.ttf", "DroidSansMono.ttf", "CutiveMono.ttf", "NotoSerif-Regular.ttf", "NotoSerif-Bold.ttf", "NotoSerif-Italic.ttf", "NotoSerif-BoldItalic.ttf", "SourceSansPro-Regular.ttf", "SourceSansPro-Italic.ttf", "SourceSansPro-SemiBold.ttf", "SourceSansPro-SemiBoldItalic.ttf", "SourceSansPro-Bold.ttf", "SourceSansPro-BoldItalic.ttf", "ComingSoon.ttf", "DancingScript-Regular.ttf", "CarroisGothicSC-Regular.ttf"];
+import { CONFIG, STATE } from './config.js';
+import { ksuExec, toMono, wait } from './utils.js';
+import { processAndFlash } from './flasher.js';
 
 class FontCraftUI {
     constructor() {
         this.data = null;
-        this.activeJsonUrl = DEFAULT_JSON_URL;
+        this.activeJsonUrl = CONFIG.DEFAULT_JSON_URL;
         this.activeRepoName = "RipperHybrid (Default)";
         this.currentCategory = 'Emoji';
         this.themes = ['dark', 'light', 'retro'];
@@ -30,6 +19,17 @@ class FontCraftUI {
         this.commandHistory = [];
         this.init();
     }
+
+    processAndFlash = processAndFlash;
+
+    ksuExec(command) {
+        return ksuExec(command, this.commandHistory);
+    }
+
+    toMono(text) {
+        return toMono(text);
+    }
+
     async init() {
         this.cleanup();
         this.fixStyles();
@@ -42,7 +42,8 @@ class FontCraftUI {
         this.fetchLibrary();
         this.updateBuildUI();
     }
-        injectSettingsUI() {
+
+    injectSettingsUI() {
         const installerDisplay = document.getElementById('installerPathDisplay');
         const parent = installerDisplay ? installerDisplay.closest('.settings-group') : null;
 
@@ -50,28 +51,29 @@ class FontCraftUI {
             const container = document.createElement('div');
             container.className = 'binary-selector';
             container.style.marginTop = '15px';
-            container.innerHTML = `<label>Installation Command Arguments:</label><div class="input-row"><input type="text" id="installArgsInput" class="settings-input" value="module install" placeholder="e.g. module install"></div><p style="font-size:0.75em; color:var(--text-secondary); margin-top:4px">Full command: <span style="font-family:monospace">\${ROOT_CMD} <span id="cmdPreview">module install</span> "zip"</span></p>`;
+            container.innerHTML = `<label>Installation Command Arguments:</label><div class="input-row"><input type="text" id="installArgsInput" class="settings-input" value="module install" placeholder="e.g. module install"></div><p style="font-size:0.75em; color:var(--text-secondary); margin-top:4px">Full command: <span style="font-family:monospace">\${STATE.ROOT_CMD} <span id="cmdPreview">module install</span> "zip"</span></p>`;
             const presetBtns = parent.querySelector('.preset-buttons');
             if (presetBtns) parent.insertBefore(container, presetBtns);
             else parent.appendChild(container);
             
             const input = document.getElementById('installArgsInput');
             input.addEventListener('input', (e) => {
-                INSTALL_ARGS = e.target.value;
-                document.getElementById('cmdPreview').innerText = INSTALL_ARGS;
+                STATE.INSTALL_ARGS = e.target.value;
+                document.getElementById('cmdPreview').innerText = STATE.INSTALL_ARGS;
             });
         }
     }
+
     async detectRootManager() {
         if (typeof ksu === 'undefined') return;
         try {
             const ksuCheck = await this.ksuExec("if [ -d '/data/adb/ksu/bin' ]; then echo 'exists'; fi");
             if (ksuCheck.includes('exists')) {
-                ROOT_BIN = "/data/adb/ksu/bin";
-                ROOT_MANAGER = "ksud";
-                BB = `${ROOT_BIN}/busybox`;
-                ROOT_CMD = `${ROOT_BIN}/ksud`;
-                ZIP_BIN = `${MOD_BIN}/zip`;
+                STATE.ROOT_BIN = "/data/adb/ksu/bin";
+                STATE.ROOT_MANAGER = "ksud";
+                STATE.BB = `${STATE.ROOT_BIN}/busybox`;
+                STATE.ROOT_CMD = `${STATE.ROOT_BIN}/ksud`;
+                STATE.ZIP_BIN = `${CONFIG.MOD_BIN}/zip`;
                 this.updateSettingsUI();
                 ksu.toast("✓ Detected: KernelSU");
                 return;
@@ -80,65 +82,42 @@ class FontCraftUI {
         try {
             const apdCheck = await this.ksuExec("if [ -d '/data/adb/apd' ]; then echo 'exists'; fi");
             if (apdCheck.includes('exists')) {
-                ROOT_BIN = "/data/adb/apd";
-                ROOT_MANAGER = "apd";
-                BB = `${ROOT_BIN}/busybox`;
-                ROOT_CMD = `${ROOT_BIN}/apd`;
-                ZIP_BIN = `${MOD_BIN}/zip`;
+                STATE.ROOT_BIN = "/data/adb/apd";
+                STATE.ROOT_MANAGER = "apd";
+                STATE.BB = `${STATE.ROOT_BIN}/busybox`;
+                STATE.ROOT_CMD = `${STATE.ROOT_BIN}/apd`;
+                STATE.ZIP_BIN = `${CONFIG.MOD_BIN}/zip`;
                 this.updateSettingsUI();
                 ksu.toast("✓ Detected: APatch");
                 return;
             }
         } catch (e) {}
-        ROOT_BIN = "/data/adb/ksu/bin";
-        BB = `${ROOT_BIN}/busybox`;
-        ROOT_CMD = `${ROOT_BIN}/ksud`;
+        
+        STATE.ROOT_BIN = "/data/adb/ksu/bin";
+        STATE.BB = `${STATE.ROOT_BIN}/busybox`;
+        STATE.ROOT_CMD = `${STATE.ROOT_BIN}/ksud`;
         this.updateSettingsUI();
     }
+
     updateSettingsUI() {
         const bbDisplay = document.getElementById('bbPathDisplay');
         const installerDisplay = document.getElementById('installerPathDisplay');
         const argsInput = document.getElementById('installArgsInput');
-        if (bbDisplay) bbDisplay.innerText = BB;
-        if (installerDisplay) installerDisplay.innerText = ROOT_CMD;
+        if (bbDisplay) bbDisplay.innerText = STATE.BB;
+        if (installerDisplay) installerDisplay.innerText = STATE.ROOT_CMD;
         if (argsInput) {
-            argsInput.value = INSTALL_ARGS;
+            argsInput.value = STATE.INSTALL_ARGS;
             const preview = document.getElementById('cmdPreview');
-            if(preview) preview.innerText = INSTALL_ARGS;
+            if(preview) preview.innerText = STATE.INSTALL_ARGS;
         }
     }
+
     fixStyles() {
         const style = document.createElement('style');
         style.innerHTML = `body.modal-open { touch-action: auto !important; } .modal-overlay { pointer-events: auto !important; touch-action: auto !important; } .modal-box { pointer-events: auto !important; } body.modal-open .app { pointer-events: none !important; }`;
         document.head.appendChild(style);
     }
-    ksuExec(command) {
-        return new Promise((resolve, reject) => {
-            if (typeof ksu === 'undefined' || typeof ksu.exec !== 'function') {
-                this.commandHistory.push({
-                    command,
-                    output: "Success (Mock)",
-                    error: null,
-                    time: new Date().toLocaleString()
-                });
-                resolve("Success (Mock)");
-                return;
-            }
-            const callbackName = `exec_callback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            window[callbackName] = (errno, stdout, stderr) => {
-                delete window[callbackName];
-                this.commandHistory.push({
-                    command,
-                    output: stdout,
-                    error: errno !== 0 ? (stderr || `Error ${errno}`) : null,
-                    time: new Date().toLocaleString()
-                });
-                if (errno !== 0) reject(new Error(stderr || `Error ${errno}`));
-                else resolve(stdout);
-            };
-            ksu.exec(command, "{}", callbackName);
-        });
-    }
+
     openDebugConsole() {
         const modal = document.getElementById('debugModal');
         modal.classList.add('active');
@@ -153,6 +132,7 @@ class FontCraftUI {
         }
         document.getElementById('debugOutput').innerText = log;
     }
+
     copyDebugLog() {
         const text = document.getElementById('debugOutput').innerText;
         navigator.clipboard.writeText(text).then(() => {
@@ -160,30 +140,35 @@ class FontCraftUI {
             else alert('Copied to clipboard!');
         });
     }
+
     closeDebugConsole() {
         const modal = document.getElementById('debugModal');
         modal.classList.remove('active');
         this.toggleBodyLock(false);
     }
+
     async checkInternet() {
         if (typeof ksu === 'undefined') return navigator.onLine;
         try {
-            await this.ksuExec(`${BB} ping -c 1 8.8.8.8`);
+            await this.ksuExec(`${STATE.BB} ping -c 1 8.8.8.8`);
             return true;
         } catch (e) {
             return false;
         }
     }
+
     cleanup() {
         if (typeof ksu !== 'undefined' && typeof ksu.exec === 'function') {
-             ksu.exec(`rm -rf "${TEMP_DIR}"`, "{}", () => {});
-             ksu.exec(`rm -rf "${BUILD_DIR}"`, "{}", () => {});
+             ksu.exec(`rm -rf "${CONFIG.TEMP_DIR}"`, "{}", () => {});
+             ksu.exec(`rm -rf "${CONFIG.BUILD_DIR}"`, "{}", () => {});
         }
     }
+
     loadTheme() {
         const saved = localStorage.getItem('fontcraft-theme') || 'dark';
         this.setTheme(saved);
     }
+
     setTheme(theme) {
         document.body.classList.remove(...this.themes.map(t => `${t}-mode`));
         document.body.classList.add(`${theme}-mode`);
@@ -195,11 +180,13 @@ class FontCraftUI {
             else btn.innerHTML = StylizeTextIcons.getNightModeIcon();
         }
     }
+
     toggleTheme() {
         const current = localStorage.getItem('fontcraft-theme') || 'dark';
         const next = this.themes[(this.themes.indexOf(current) + 1) % this.themes.length];
         this.setTheme(next);
     }
+
     toggleBodyLock(isLocked) {
         if (isLocked) document.body.classList.add('modal-open');
         else {
@@ -207,6 +194,7 @@ class FontCraftUI {
             if (activeModals.length <= 1) document.body.classList.remove('modal-open');
         }
     }
+
     setupListeners() {
         document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
         document.getElementById('settingsBtn').addEventListener('click', () => this.openSettings());
@@ -232,6 +220,7 @@ class FontCraftUI {
         });
         document.getElementById('file-selector-back').innerHTML = StylizeTextIcons.getBackIcon();
     }
+
     updateRepoDisplay() {
         const el = document.getElementById('repo-source');
         if(el) {
@@ -240,8 +229,9 @@ class FontCraftUI {
             setTimeout(() => el.style.color = 'var(--text-secondary)', 1000);
         }
     }
+
     async getWorkingMirror() {
-        if (this.activeJsonUrl !== DEFAULT_JSON_URL) return this.activeJsonUrl;
+        if (this.activeJsonUrl !== CONFIG.DEFAULT_JSON_URL) return this.activeJsonUrl;
         const loader = document.getElementById('loader');
         if(loader && loader.style.display !== 'none') {
              const p = loader.querySelector('p') || document.createElement('p');
@@ -251,13 +241,13 @@ class FontCraftUI {
         const repoDisplay = document.getElementById('repo-source');
         if(repoDisplay) repoDisplay.innerText = "Checking Mirrors...";
         try {
-            const response = await fetch(MIRRORS_URL, { cache: "no-store" });
+            const response = await fetch(CONFIG.MIRRORS_URL, { cache: "no-store" });
             if (!response.ok) throw new Error("Failed to fetch mirrors.json");
             const data = await response.json();
             if (!data.mirrors || !Array.isArray(data.mirrors) || data.mirrors.length === 0) {
                 this.activeRepoName = "RipperHybrid (Fallback)";
                 this.updateRepoDisplay();
-                return DEFAULT_JSON_URL;
+                return CONFIG.DEFAULT_JSON_URL;
             }
             for (let i = 0; i < data.mirrors.length; i++) {
                 const mirror = data.mirrors[i];
@@ -265,7 +255,7 @@ class FontCraftUI {
                 if(repoDisplay) repoDisplay.innerText = `Testing: ${mirror.repo}`;
                 try {
                     if (typeof ksu !== 'undefined') {
-                        await this.ksuExec(`${BB} wget -q --spider --no-check-certificate --timeout=5 "${mirror.url}"`);
+                        await this.ksuExec(`${STATE.BB} wget -q --spider --no-check-certificate --timeout=5 "${mirror.url}"`);
                         this.activeRepoName = mirror.repo;
                         this.updateRepoDisplay();
                         ksu.toast(`✅ Connected: ${mirror.repo}`);
@@ -293,8 +283,9 @@ class FontCraftUI {
         if(typeof ksu !== 'undefined') ksu.toast("⚠️ All mirrors failed, using default");
         this.activeRepoName = "RipperHybrid (Default)";
         this.updateRepoDisplay();
-        return DEFAULT_JSON_URL;
+        return CONFIG.DEFAULT_JSON_URL;
     }
+
     async fetchLibrary() {
         const loader = document.getElementById('loader');
         const grid = document.getElementById('gridContainer');
@@ -303,11 +294,11 @@ class FontCraftUI {
             loader.innerHTML = '<div class="spinner"></div><p>Connecting...</p>';
             grid.innerHTML = '';
             if (!(await this.checkInternet())) throw new Error("No internet connection");
-            await this.ksuExec(`mkdir -p "${TEMP_DIR}"`);
-            if (this.activeJsonUrl === DEFAULT_JSON_URL) this.activeJsonUrl = await this.getWorkingMirror();
+            await this.ksuExec(`mkdir -p "${CONFIG.TEMP_DIR}"`);
+            if (this.activeJsonUrl === CONFIG.DEFAULT_JSON_URL) this.activeJsonUrl = await this.getWorkingMirror();
             loader.querySelector('p').innerText = "Loading Fonts...";
             if (typeof ksu !== 'undefined') {
-                const jsonStr = await this.ksuExec(`${BB} wget -q --no-check-certificate -O - "${this.activeJsonUrl}"`);
+                const jsonStr = await this.ksuExec(`${STATE.BB} wget -q --no-check-certificate -O - "${this.activeJsonUrl}"`);
                 try { this.data = JSON.parse(jsonStr); } catch(e) { throw new Error("Invalid JSON data received via shell"); }
             } else {
                 const response = await fetch(this.activeJsonUrl);
@@ -320,6 +311,7 @@ class FontCraftUI {
             loader.innerHTML = `<p style="color:var(--error)">Error: ${error.message}</p><button onclick="window.fontUI.fetchLibrary()" class="install-btn">Retry</button>`;
         }
     }
+
     renderGrid(category) {
         this.currentCategory = category;
         const grid = document.getElementById('gridContainer');
@@ -347,6 +339,7 @@ class FontCraftUI {
             grid.appendChild(card);
         });
     }
+
     openInstallModal(category, folderName) {
         if(this.queue[category] !== null) {
             const msg = `Already selected a ${category}. Clear it first!`;
@@ -373,6 +366,7 @@ class FontCraftUI {
         modal.classList.add('active');
         this.toggleBodyLock(true);
     }
+
     async addToQueue(category, folderName, url, filename, btnElement) {
         const modal = document.getElementById('installModal');
         const closeBtn = modal.querySelector('.close-modal');
@@ -390,25 +384,25 @@ class FontCraftUI {
             this.unlockModal(modal, closeBtn);
             return;
         }
-        const destPath = `${TEMP_DIR}/${category}_${filename}`;
+        const destPath = `${CONFIG.TEMP_DIR}/${category}_${filename}`;
         const originalText = btnElement.innerText;
         btnElement.disabled = true;
         btnElement.innerText = "Checking size...";
         let pollInterval = null;
         let expectedBytes = 0;
         try {
-            const sizeCmd = `${BB} wget --spider --server-response "${url}" 2>&1 | grep -i "Content-Length" | tail -n 1 | awk '{print $2}' | tr -d '\\r'`;
+            const sizeCmd = `${STATE.BB} wget --spider --server-response "${url}" 2>&1 | grep -i "Content-Length" | tail -n 1 | awk '{print $2}' | tr -d '\\r'`;
             const sizeOutput = await this.ksuExec(sizeCmd);
             expectedBytes = parseInt(sizeOutput.trim());
             ksu.toast(`Downloading ${filename}...`);
             await this.ksuExec(`rm -f "${destPath}"`);
-            const bgCmd = `${BB} wget --no-check-certificate -O "${destPath}" "${url}" > /dev/null 2>&1 & echo $!`;
+            const bgCmd = `${STATE.BB} wget --no-check-certificate -O "${destPath}" "${url}" > /dev/null 2>&1 & echo $!`;
             const pidOutput = await this.ksuExec(bgCmd);
             const pid = pidOutput.trim();
             if(!pid) throw new Error("Failed to start download process");
             pollInterval = setInterval(async () => {
                 try {
-                    const size = await this.ksuExec(`${BB} du -h "${destPath}" | awk '{print $1}'`);
+                    const size = await this.ksuExec(`${STATE.BB} du -h "${destPath}" | awk '{print $1}'`);
                     if(size && size.trim() !== "" && !size.includes("No such")) btnElement.innerText = `DL: ${size.trim()}`;
                     const checkRunning = await this.ksuExec(`if [ -d "/proc/${pid}" ]; then echo "running"; else echo "stopped"; fi`);
                     if(checkRunning.includes("stopped")) {
@@ -423,18 +417,19 @@ class FontCraftUI {
             this.unlockModal(modal, closeBtn);
         }
     }
+
     async finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, modal, closeBtn, expectedBytes) {
         try {
             const check = await this.ksuExec(`if [ -f "${destPath}" ]; then echo "exists"; fi`);
             if(check.includes("exists")) {
-                const localSizeCmd = `${BB} wc -c "${destPath}" | awk '{print $1}'`;
+                const localSizeCmd = `${STATE.BB} wc -c "${destPath}" | awk '{print $1}'`;
                 const localResult = await this.ksuExec(localSizeCmd);
                 const localBytes = parseInt(localResult.trim());
                 if (expectedBytes > 0 && localBytes !== expectedBytes) {
                     await this.ksuExec(`rm -f "${destPath}"`);
                     throw new Error(`Incomplete download. (Got ${localBytes} of ${expectedBytes} bytes)`);
                 }
-                const finalSize = await this.ksuExec(`${BB} du -h "${destPath}" | awk '{print $1}'`);
+                const finalSize = await this.ksuExec(`${STATE.BB} du -h "${destPath}" | awk '{print $1}'`);
                 btnElement.innerText = `Done (${finalSize.trim()})`;
                 this.queue[category] = { name: folderName, path: destPath, filename: filename };
                 ksu.toast(`✅ Verified: ${folderName}`);
@@ -446,18 +441,21 @@ class FontCraftUI {
             this.unlockModal(modal, closeBtn);
         }
     }
+
     handleDownloadError(btn, originalText, msg) {
         btn.innerText = "Failed";
         btn.disabled = false;
         if(typeof ksu !== 'undefined') ksu.toast(`❌ Error: ${msg}`);
         setTimeout(() => { btn.innerText = originalText; }, 3000);
     }
+
     unlockModal(modal, closeBtn) {
         modal.classList.remove('locked');
         closeBtn.classList.remove('locked');
         modal.classList.remove('active');
         this.toggleBodyLock(false);
     }
+
     handleClearClick() {
         const hasEmoji = this.queue.Emoji !== null;
         const hasFont = this.queue.Fonts !== null;
@@ -467,10 +465,12 @@ class FontCraftUI {
         } else if (hasEmoji) this.clearQueueItem('Emoji');
         else if (hasFont) this.clearQueueItem('Fonts');
     }
+
     closeClearModal() {
         document.getElementById('clearSelectionModal').classList.remove('active');
         this.toggleBodyLock(false);
     }
+
     async clearQueueItem(type) {
         if (type === 'Both') {
             await this.deleteFile('Emoji');
@@ -484,6 +484,7 @@ class FontCraftUI {
         this.updateBuildUI();
         this.closeClearModal();
     }
+
     async deleteFile(category) {
         if(!this.queue[category]) return;
         const path = this.queue[category].path;
@@ -492,6 +493,7 @@ class FontCraftUI {
             ksu.toast(`Cleared ${category}`);
         } else if (typeof ksu !== 'undefined') ksu.toast(`Cleared ${category}`);
     }
+
     updateBuildUI() {
         const emojiStatus = document.getElementById('emojiStatus');
         const fontStatus = document.getElementById('fontStatus');
@@ -530,17 +532,20 @@ class FontCraftUI {
             flashBtn.innerText = "Select items to Flash";
         }
     }
+
     showTerminal() {
         document.getElementById('terminalModal').classList.add('active');
         this.toggleBodyLock(true);
         document.getElementById('terminalOutput').innerText = "Initializing Environment...\n";
         document.getElementById('termCloseBtn').style.display = 'none';
     }
+
     updateTerminal(text) {
         const term = document.getElementById('terminalOutput');
         term.innerText += text + "\n";
         term.scrollTop = term.scrollHeight;
     }
+
     closeTerminal() {
         document.getElementById('terminalModal').classList.remove('active');
         this.toggleBodyLock(false);
@@ -548,109 +553,7 @@ class FontCraftUI {
         this.updateBuildUI();
         this.cleanup();
     }
-    async processAndFlash() {
-        if (typeof ksu === 'undefined') return alert("Root Manager Required");
-        if (!ROOT_BIN || !ROOT_CMD) {
-            alert("Root manager not detected! Please restart the app.");
-            return;
-        }
 
-        const toMono = (text) => {
-            const normal = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            const mono = [..."𝚊𝚋𝚌𝚍𝚎𝚏𝚐𝚑𝚒𝚓𝚔𝚕𝚖𝚗𝚘𝚙𝚚𝚛𝚜𝚝𝚞𝚟𝚠𝚡𝚢𝚣𝙰𝙱𝙲𝙳𝙴𝙵𝙶𝙷𝙸𝙹𝙺𝙻𝙼𝙽𝙾𝙿𝚀𝚁𝚂𝚃𝚄𝚅𝚆𝚇𝚈𝚉"];
-            return text.split('').map(char => {
-                const index = normal.indexOf(char);
-                return index > -1 ? mono[index] : char;
-            }).join('');
-        };
-
-        const btn = document.getElementById('flashBtn');
-        const originalText = btn.innerText;
-        try {
-            btn.disabled = true;
-            btn.innerText = "Downloading Template...";
-            const isLocalEmoji = this.queue.Emoji && (this.queue.Emoji.path.startsWith('/storage/') || this.queue.Emoji.path.startsWith('/mnt/'));
-            const isLocalFont = this.queue.Fonts && (this.queue.Fonts.path.startsWith('/storage/') || this.queue.Fonts.path.startsWith('/mnt/'));
-            if (!isLocalEmoji || !isLocalFont) {
-                if (!(await this.checkInternet())) throw new Error("No internet connection");
-            }
-            await this.ksuExec(`rm -rf "${BUILD_DIR}" && mkdir -p "${BUILD_DIR}"`);
-            const templatePath = `${TEMP_DIR}/template.zip`;
-            if (!templatePath.startsWith('/storage/emulated/0') && !templatePath.startsWith('/mnt/')) {
-                if (!(await this.checkInternet())) throw new Error("No internet connection to download template");
-                await this.ksuExec(`${BB} wget --no-check-certificate -O "${templatePath}" "${TEMPLATE_URL}"`);
-            }
-            await this.ksuExec(`${BB} unzip -o "${templatePath}" -d "${BUILD_DIR}"`);
-            await this.ksuExec(`mkdir -p "${BUILD_DIR}/system/fonts"`);
-            
-            let fontName = "";
-            let emojiName = "";
-            
-            if (this.queue.Emoji) {
-                await this.ksuExec(`cp "${this.queue.Emoji.path}" "${BUILD_DIR}/system/fonts/NotoColorEmoji.ttf"`);
-                emojiName = this.queue.Emoji.filename.replace(/\.[^/.]+$/, "");
-            }
-            if (this.queue.Fonts) {
-                const fontPath = this.queue.Fonts.path;
-                fontName = this.queue.Fonts.filename.replace(/\.[^/.]+$/, "");
-                let copyCmd = "";
-                SYSTEM_FONTS.forEach(sysFont => {
-                    copyCmd += `cp "${fontPath}" "${BUILD_DIR}/system/fonts/${sysFont}"; `;
-                });
-                await this.ksuExec(copyCmd);
-            }
-
-            btn.innerText = "Creating customize.sh...";
-            
-            let uiPrintMsg = "";
-            let descMsg = "";
-            
-            if (fontName && emojiName) {
-                uiPrintMsg = `𝙵𝚕𝚊𝚜𝚑𝚒𝚗𝚐 ${toMono(fontName)} & ${toMono(emojiName)}`;
-                descMsg = `description=📥 Injected ${fontName} font and ${emojiName} emoji support.`;
-            } else if (fontName) {
-                uiPrintMsg = `𝙵𝚕𝚊𝚜𝚑𝚒𝚗𝚐 ${toMono(fontName)}`;
-                descMsg = `description=📥 Applied ${fontName} font injection.`;
-            } else if (emojiName) {
-                uiPrintMsg = `𝙵𝚕𝚊𝚜𝚑𝚒𝚗𝚐 ${toMono(emojiName)}`;
-                descMsg = `description=📥 Applied ${emojiName} emoji support.`;
-            }
-
-            const customizeScript = `#!/sbin/sh\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print "   𝙵𝚘𝚗𝚝𝙲𝚛𝚊𝚏𝚝 𝙼𝚘𝚍𝚞𝚕𝚎 𝙱𝚞𝚒𝚕𝚍𝚎𝚛      "\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print " "\nui_print "- ${uiPrintMsg}"\nui_print " "\nif [ -d "$MODPATH/binaries" ]; then\n    chmod +x "$MODPATH"/binaries/*\n    ui_print "- ✅ 𝚂𝚎𝚝 𝚎𝚡𝚎𝚌𝚞𝚝𝚎 𝚙𝚎𝚛𝚖𝚒𝚜𝚜𝚒𝚘𝚗𝚜 𝚏𝚘𝚛 𝚊𝚕𝚕 𝚋𝚒𝚗𝚊𝚛𝚒𝚎𝚜."\n    ui_print " "\nfi\nui_print "- 𝚁𝚎𝚋𝚘𝚘𝚝 𝚒𝚖𝚖𝚎𝚍𝚒𝚊𝚝𝚎𝚕𝚢 𝚒𝚏 𝚞𝚜𝚒𝚗𝚐 𝙼𝚎𝚝𝚊𝚖𝚘𝚍𝚞𝚕𝚎"\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print " "`;
-            await this.ksuExec(`echo '${customizeScript}' > "${BUILD_DIR}/customize.sh"`);
-            await this.ksuExec(`printf "\\n" >> "${BUILD_DIR}/module.prop"`);
-            await this.ksuExec(`echo "${descMsg}" >> "${BUILD_DIR}/module.prop"`);
-
-            btn.innerText = "Flashing...";
-            this.showTerminal();
-
-            const finalZip = `${TEMP_DIR}/FontCraft_Install.zip`;
-            const zipBinary = ZIP_BIN || `${MOD_BIN}/zip`;
-
-            this.updateTerminal("Zipping module...");
-            await this.ksuExec(`cd "${BUILD_DIR}" && ${zipBinary} -r "${finalZip}" .`);
-
-            const installCmd = `${ROOT_CMD} ${INSTALL_ARGS} "${finalZip}"`;
-            this.updateTerminal(`Executing: ${installCmd}`);
-
-            const result = await this.ksuExec(installCmd);
-            this.updateTerminal(result);
-            this.updateTerminal("\n[PROCESS COMPLETED]");
-            if (ROOT_MANAGER) this.updateTerminal(`Root Manager: ${ROOT_MANAGER.toUpperCase()}`);
-            await this.cleanup();
-            document.getElementById('termCloseBtn').style.display = 'block';
-            ksu.toast("✅ Operation Complete");
-        } catch (e) {
-            ksu.toast(`❌ Flash Failed: ${e.message}`);
-            if (document.getElementById('terminalModal').classList.contains('active')) {
-                this.updateTerminal(`\n[ERROR] ${e.message}`);
-                document.getElementById('termCloseBtn').style.display = 'block';
-            } else alert(`Error: ${e.message}`);
-            btn.innerText = originalText;
-            btn.disabled = false;
-            this.cleanup();
-        }
-    }
     async selectAndAddCustomFont(category) {
         try {
             this.pickerMode = 'font';
@@ -663,15 +566,18 @@ class FontCraftUI {
             if(typeof ksu !== 'undefined' && error.message !== "File selection cancelled.") ksu.toast(`ℹ️ ${error.message}`);
         }
     }
+
     openSettings() {
         document.getElementById('settingsModal').classList.add('active');
         this.toggleBodyLock(true);
         this.updateSettingsUI();
     }
+
     closeSettings() {
         document.getElementById('settingsModal').classList.remove('active');
         this.toggleBodyLock(false);
     }
+
     async validateAndSetSource() {
         const input = document.getElementById('sourceInput');
         const url = input.value.trim();
@@ -683,7 +589,7 @@ class FontCraftUI {
             input.disabled = true;
             if (!(await this.checkInternet())) throw new Error("No internet connection");
             let jsonStr;
-            if (typeof ksu !== 'undefined') jsonStr = await this.ksuExec(`${BB} wget -q --no-check-certificate -O - "${url}"`);
+            if (typeof ksu !== 'undefined') jsonStr = await this.ksuExec(`${STATE.BB} wget -q --no-check-certificate -O - "${url}"`);
             else {
                 const response = await fetch(url);
                 jsonStr = await response.text();
@@ -704,6 +610,7 @@ class FontCraftUI {
             input.disabled = false;
         }
     }
+
     openBinaryPicker(type) {
         const modal = document.getElementById('settingsModal');
         if (modal.classList.contains('active')) {
@@ -713,7 +620,7 @@ class FontCraftUI {
         this.pickerMode = 'binary';
         this.binarySelectionType = type;
         this.baseBrowsePath = "/data/adb";
-        let targetVal = (type === 'busybox') ? BB : ROOT_CMD;
+        let targetVal = (type === 'busybox') ? STATE.BB : STATE.ROOT_CMD;
         this.currentFilePath = "/data/adb";
         if (targetVal && targetVal.startsWith("/data/adb") && targetVal.includes("/")) {
             let dir = targetVal.substring(0, targetVal.lastIndexOf('/'));
@@ -721,23 +628,25 @@ class FontCraftUI {
         }
         this.openCustomFilePicker(null);
     }
+
     applyPreset(preset) {
         if (preset === 'ksu') {
-            ROOT_BIN = "/data/adb/ksu/bin";
-            BB = `${ROOT_BIN}/busybox`;
-            ROOT_CMD = `${ROOT_BIN}/ksud`;
-            ROOT_MANAGER = "ksud";
-            INSTALL_ARGS = "module install";
+            STATE.ROOT_BIN = "/data/adb/ksu/bin";
+            STATE.BB = `${STATE.ROOT_BIN}/busybox`;
+            STATE.ROOT_CMD = `${STATE.ROOT_BIN}/ksud`;
+            STATE.ROOT_MANAGER = "ksud";
+            STATE.INSTALL_ARGS = "module install";
         } else if (preset === 'apatch') {
-            ROOT_BIN = "/data/adb/apd";
-            BB = `${ROOT_BIN}/busybox`;
-            ROOT_CMD = `${ROOT_BIN}/apd`;
-            ROOT_MANAGER = "apd";
-            INSTALL_ARGS = "module install";
+            STATE.ROOT_BIN = "/data/adb/apd";
+            STATE.BB = `${STATE.ROOT_BIN}/busybox`;
+            STATE.ROOT_CMD = `${STATE.ROOT_BIN}/apd`;
+            STATE.ROOT_MANAGER = "apd";
+            STATE.INSTALL_ARGS = "module install";
         }
         this.updateSettingsUI();
         if(typeof ksu !== 'undefined') ksu.toast(`Applied ${preset.toUpperCase()} preset`);
     }
+
     async detectStorageVolumes() {
         const volumes = [];
         volumes.push({
@@ -764,6 +673,7 @@ class FontCraftUI {
         } catch (e) {}
         return volumes;
     }
+
     async openCustomFilePicker(category) {
         if(this.pickerMode === 'font' && this.queue[category] !== null) {
             const msg = `Already selected a ${category}. Clear it first!`;
@@ -784,6 +694,7 @@ class FontCraftUI {
         document.getElementById('file-selector-back').onclick = () => this.handleFileBrowserBack();
         return new Promise((resolve, reject) => { this.filePickerPromise = { resolve, reject }; });
     }
+
     closeCustomFilePicker(reason = "File selection cancelled.") {
         const modal = document.getElementById('fileSelectorModal');
         modal.classList.remove('active');
@@ -799,10 +710,11 @@ class FontCraftUI {
         if (this.filePickerPromise.reject) this.filePickerPromise.reject(new Error(reason));
         this.filePickerPromise = { resolve: null, reject: null };
     }
+
     updateFileBrowserPath() {
         const pathEl = document.getElementById('file-selector-path');
         pathEl.innerHTML = "";
-        if (this.currentFilePath === STORAGE_ROOT) {
+        if (this.currentFilePath === CONFIG.STORAGE_ROOT) {
             const rootSpan = document.createElement('span');
             rootSpan.className = "path-segment";
             rootSpan.innerText = "Storage Devices";
@@ -831,9 +743,9 @@ class FontCraftUI {
         rootSegment.innerText = rootName;
         rootSegment.style.fontWeight = "bold";
         rootSegment.onclick = () => {
-             this.currentFilePath = STORAGE_ROOT;
+             this.currentFilePath = CONFIG.STORAGE_ROOT;
              this.updateFileBrowserPath();
-             this.listFilesInPath(STORAGE_ROOT);
+             this.listFilesInPath(CONFIG.STORAGE_ROOT);
         };
         pathEl.appendChild(rootSegment);
         if (this.currentFilePath.length > displayBase.length) {
@@ -855,6 +767,7 @@ class FontCraftUI {
         }
         pathEl.scrollTo({ left: pathEl.scrollWidth, behavior: "smooth" });
     }
+
     createFileItemElement(name, type, delay) {
         const itemEl = document.createElement('div');
         itemEl.className = 'file-item';
@@ -870,10 +783,11 @@ class FontCraftUI {
         itemEl.style.animationDelay = `${delay}s`;
         return itemEl;
     }
+
     async listFilesInPath(path) {
         const listEl = document.getElementById('file-selector-list');
         listEl.innerHTML = `<div class="loading-files">Loading...</div>`;
-        if (path === STORAGE_ROOT) {
+        if (path === CONFIG.STORAGE_ROOT) {
             const volumes = await this.detectStorageVolumes();
             listEl.innerHTML = "";
             if (volumes.length === 0) {
@@ -900,7 +814,7 @@ class FontCraftUI {
             const isVolumeRoot = (path === "/storage/emulated/0" || (path.startsWith("/mnt/media_rw/") && path.split('/').length === 4));
             if (path !== "/data/adb") {
                 const upEl = this.createFileItemElement("..", "dir", delay);
-                if (isVolumeRoot && this.pickerMode !== 'binary') upEl.dataset.target = STORAGE_ROOT;
+                if (isVolumeRoot && this.pickerMode !== 'binary') upEl.dataset.target = CONFIG.STORAGE_ROOT;
                 listEl.appendChild(upEl);
                 delay += 0.03;
             }
@@ -917,6 +831,7 @@ class FontCraftUI {
             listEl.innerHTML = `<div class="error-files">Error: ${stderr}</div>`;
         }
     }
+
     async handleFileBrowserClick(e) {
         const item = e.target.closest(".file-item");
         if (!item) return;
@@ -930,10 +845,10 @@ class FontCraftUI {
         const name = item.dataset.name;
         if (type === "dir") {
             if (name === "..") {
-                if (item.dataset.target === STORAGE_ROOT) {
-                    this.currentFilePath = STORAGE_ROOT;
+                if (item.dataset.target === CONFIG.STORAGE_ROOT) {
+                    this.currentFilePath = CONFIG.STORAGE_ROOT;
                     this.updateFileBrowserPath();
-                    this.listFilesInPath(STORAGE_ROOT);
+                    this.listFilesInPath(CONFIG.STORAGE_ROOT);
                     return;
                 }
                 if (this.currentFilePath === this.baseBrowsePath && this.pickerMode === 'binary') return;
@@ -946,8 +861,8 @@ class FontCraftUI {
         } else if (type === "file") {
             const filePath = this.currentFilePath.replace(/\/$/, '') + "/" + name;
             if (this.pickerMode === 'binary') {
-                if (this.binarySelectionType === 'busybox') BB = filePath;
-                else if (this.binarySelectionType === 'installer') ROOT_CMD = filePath;
+                if (this.binarySelectionType === 'busybox') STATE.BB = filePath;
+                else if (this.binarySelectionType === 'installer') STATE.ROOT_CMD = filePath;
                 this.updateSettingsUI();
                 this.closeCustomFilePicker("Binary selected");
                 if(typeof ksu !== 'undefined') ksu.toast(`Updated ${this.binarySelectionType}`);
@@ -957,13 +872,14 @@ class FontCraftUI {
             }
         }
     }
+
     async handleFilePathClick(e) {
         const segment = e.target.closest(".path-segment");
         if (!segment) return;
         if (segment.innerText === "Storage Devices") {
-             this.currentFilePath = STORAGE_ROOT;
+             this.currentFilePath = CONFIG.STORAGE_ROOT;
              this.updateFileBrowserPath();
-             await this.listFilesInPath(STORAGE_ROOT);
+             await this.listFilesInPath(CONFIG.STORAGE_ROOT);
              return;
         }
         if (segment.dataset.path) {
@@ -972,16 +888,17 @@ class FontCraftUI {
             await this.listFilesInPath(this.currentFilePath);
         }
     }
+
     async handleFileBrowserBack() {
-        if (this.currentFilePath === STORAGE_ROOT) {
+        if (this.currentFilePath === CONFIG.STORAGE_ROOT) {
             this.closeCustomFilePicker();
             return;
         }
         const isVolumeRoot = (this.currentFilePath === "/storage/emulated/0" || (this.currentFilePath.startsWith("/mnt/media_rw/") && this.currentFilePath.split('/').length === 4));
         if (isVolumeRoot && this.pickerMode !== 'binary') {
-            this.currentFilePath = STORAGE_ROOT;
+            this.currentFilePath = CONFIG.STORAGE_ROOT;
             this.updateFileBrowserPath();
-            await this.listFilesInPath(STORAGE_ROOT);
+            await this.listFilesInPath(CONFIG.STORAGE_ROOT);
             return;
         }
         let limit = (this.pickerMode === 'binary') ? "/data/adb" : "/mnt"; 
@@ -993,5 +910,6 @@ class FontCraftUI {
         } else this.closeCustomFilePicker();
     }
 }
+
 window.switchTab = (cat) => window.fontUI.renderGrid(cat);
-document.addEventListener('DOMContentLoaded', () => { window.fontUI = new FontCraftUI(); });
+window.fontUI = new FontCraftUI();
