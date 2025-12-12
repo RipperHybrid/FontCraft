@@ -1,6 +1,6 @@
 const MIRRORS_URL = "https://fontcraft.pages.dev/mirrors.json";
 const DEFAULT_JSON_URL = "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/fonts.json";
-const TEMPLATE_URL = "https://fontcraft.pages.dev/templatetest.zip";
+const TEMPLATE_URL = "https://fontcraft.pages.dev/template.zip";
 const TEMP_DIR = "/data/local/tmp/fontcraft_cache";
 const BUILD_DIR = "/data/local/tmp/fontcraft_build";
 const STORAGE_ROOT = "Start_At_Volume_List";
