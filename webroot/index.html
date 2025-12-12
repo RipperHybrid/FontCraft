@@ -15,10 +15,10 @@
                 <span class="subtitle" id="repo-source">Connecting...</span>
             </div>
             <div class="header-right">
+                <button type="button" id="settingsBtn" class="theme-btn" title="Settings"></button>
                 <button type="button" id="themeToggle" class="theme-btn" title="Toggle Theme"></button>
             </div>
         </header>
-
         <main class="main">
             <div class="build-controls" id="buildControls">
                 <div class="queue-status">
@@ -26,33 +26,24 @@
                     <span id="clearContainer"></span>
                     <span id="fontStatus" class="status-badge empty">Font: None</span>
                 </div>
-                <button id="flashBtn" class="flash-btn" onclick="window.fontUI.processAndFlash()" disabled>
-                    Select items to Flash
-                </button>
+                <button id="flashBtn" class="flash-btn" onclick="window.fontUI.processAndFlash()" disabled>Select items to Flash</button>
             </div>
-
             <div class="nav-tabs">
                 <button class="tab-btn active" onclick="switchTab('Emoji')">Emojis</button>
                 <button class="tab-btn" onclick="switchTab('Fonts')">Fonts</button>
             </div>
-
             <div id="loader" class="loading-container">
                 <div class="spinner"></div>
                 <p>Fetching Library...</p>
             </div>
-
             <div id="gridContainer" class="grid-container"></div>
         </main>
-
         <footer class="footer">
             <div class="footer-content">
-                <div class="powered-by-badge">
-                    <span class="badge-text">Powered by AshBorn</span>
-                </div>
+                <div class="powered-by-badge"><span class="badge-text">Powered by AshBorn</span></div>
             </div>
         </footer>
     </div>
-
     <div id="installModal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">
@@ -60,15 +51,12 @@
                 <button class="close-modal">&times;</button>
             </div>
             <div class="modal-content">
-                <div id="downloadProgress" class="download-progress">
-                    <div class="progress-bar"></div>
-                </div>
+                <div id="downloadProgress" class="download-progress"><div class="progress-bar"></div></div>
                 <img id="modalPreview" src="" class="modal-preview-img" onerror="this.style.display='none'">
                 <div class="file-list" id="modalFileList"></div>
             </div>
         </div>
     </div>
-
     <div id="clearSelectionModal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">
@@ -84,7 +72,6 @@
             </div>
         </div>
     </div>
-
     <div id="terminalModal" class="modal-overlay">
         <div class="modal-box terminal-box">
             <div class="modal-header">
@@ -96,22 +83,87 @@
             </div>
         </div>
     </div>
-
     <div id="fileSelectorModal" class="modal-overlay">
         <div class="modal-box file-browser-box">
             <div class="modal-header file-selector-header">
                 <button id="file-selector-back" class="file-nav-btn" title="Go Up"></button>
-                <div id="file-selector-path" class="current-path">
-                </div>
+                <div id="file-selector-path" class="current-path"></div>
                 <button id="file-selector-close" class="close-modal" onclick="window.fontUI.closeCustomFilePicker()">&times;</button>
             </div>
             <div class="modal-content" id="file-selector-list-wrapper">
-                <div id="file-selector-list" class="file-list">
+                <div id="file-selector-list" class="file-list"></div>
+            </div>
+        </div>
+    </div>
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Settings</h3>
+                <button class="close-modal" onclick="window.fontUI.closeSettings()">&times;</button>
+            </div>
+            <div class="modal-content">
+                <div class="settings-group">
+                    <label>Library Source (JSON)</label>
+                    <div class="input-row">
+                        <input type="text" id="sourceInput" placeholder="Enter JSON URL" class="settings-input">
+                        <button class="settings-action-btn" onclick="window.fontUI.validateAndSetSource()">Apply</button>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <label>Root Manager & Binaries</label>
+                    <p class="warning-text">Warning: Do not modify these settings unless you know what you are doing.</p>
+                    <div class="preset-container">
+                        <button class="preset-card ksu-btn" onclick="window.fontUI.applyPreset('ksu')">
+                            <div class="preset-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                            </div>
+                            <div class="preset-info">
+                                <span class="preset-title">KernelSU</span>
+                                <span class="preset-desc">Apply KSU Paths</span>
+                            </div>
+                        </button>
+                        <button class="preset-card apatch-btn" onclick="window.fontUI.applyPreset('apatch')">
+                            <div class="preset-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                            </div>
+                            <div class="preset-info">
+                                <span class="preset-title">APatch</span>
+                                <span class="preset-desc">Apply APD Paths</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="binary-selector">
+                        <label>BusyBox Path:</label>
+                        <div class="path-display" id="bbPathDisplay" onclick="window.fontUI.openBinaryPicker('busybox')">Detecting...</div>
+                    </div>
+                    <div class="binary-selector">
+                        <label>Installer (Root Cmd):</label>
+                        <div class="path-display" id="installerPathDisplay" onclick="window.fontUI.openBinaryPicker('installer')">Detecting...</div>
+                    </div>
+                </div>
+                <div class="settings-group" style="text-align: center;">
+                    <label style="text-align: left;">Debug & Diagnostics</label>
+                    <button class="debug-launch-btn" onclick="window.fontUI.openDebugConsole()">
+                        <span class="debug-icon">⚙</span> Open Debug Console
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-
+    <div id="debugModal" class="modal-overlay">
+        <div class="modal-box terminal-box">
+            <div class="modal-header">
+                <h3>Debug Console</h3>
+                <div style="display:flex; gap:10px;">
+                    <button class="download-action-btn" style="padding: 2px 8px; font-size: 0.8em;" onclick="window.fontUI.copyDebugLog()">Copy</button>
+                    <button class="close-modal" onclick="window.fontUI.closeDebugConsole()">&times;</button>
+                </div>
+            </div>
+            <div class="modal-content terminal-wrapper">
+                <pre id="debugOutput" style="font-size: 0.75em; color: #ccc;">Initializing...</pre>
+            </div>
+        </div>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>
