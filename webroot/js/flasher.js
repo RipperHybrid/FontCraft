@@ -139,12 +139,11 @@ export async function processAndFlash() {
         const installCmd = `${STATE.ROOT_CMD} ${STATE.INSTALL_ARGS} "${finalZip}"`;
         this.updateTerminal(toMono("\n>>> Executing Installer"));
         this.updateTerminal(`CMD: ${installCmd}\n`);
-        
-        await wait(100);
+        this.updateTerminal(`${uiPrintMsg}...`);
+        await wait(50);
 
         await this.ksuExec(installCmd);
         
-        this.updateTerminal(`${uiPrintMsg}...`);
         this.updateTerminal(toMono("\n>>> Status: Success (Exit Code 0)"));
         this.updateTerminal("\n" + toMono("[PROCESS COMPLETED]"));
 
@@ -153,23 +152,22 @@ export async function processAndFlash() {
         
         if (isMetamoduleMode) {
             this.updateTerminal(toMono("\n⚠️ Metamodule Active"));
-            this.updateTerminal(toMono(">>> Rebooting in 5 seconds..."));
+            this.updateTerminal(toMono(">>> Rebooting in five seconds..."));
             document.getElementById('termCloseBtn').style.display = 'none';
             await wait(1000);
-            this.updateTerminal(toMono("4..."));
+            this.updateTerminal(toMono("four..."));
             await wait(1000);
-            this.updateTerminal(toMono("3..."));
+            this.updateTerminal(toMono("three..."));
             await wait(1000);
-            this.updateTerminal(toMono("2..."));
+            this.updateTerminal(toMono("two..."));
             await wait(1000);
-            this.updateTerminal(toMono("1..."));
+            this.updateTerminal(toMono("one..."));
             await wait(1000);
             await this.ksuExec('su -c "reboot"');
         } else {
             const actionsDiv = document.getElementById('termActionButtons');
             actionsDiv.innerHTML = `
                 <button class="term-btn" onclick="window.fontUI.closeTerminal()">${toMono('Close')}</button>
-                <button class="term-btn" onclick="window.fontUI.showMTFInfo()">${toMono('MTF Mode')}</button>
                 <button class="term-btn reboot" onclick="window.fontUI.doReboot()">${toMono('Reboot')}</button>
             `;
             actionsDiv.style.display = 'flex';
