@@ -1,4 +1,5 @@
-#!/sbin/sh
+#!/system/bin/sh
+# FontCraft customize Logic - Don't modify anything after this - By AshBorn (@Ripper_Hybrid)
 
 . "$MODPATH"/ffun.sh || { echo "Error: Failed to source ffun.sh"; exit 1; }
 both=false
@@ -169,6 +170,7 @@ select_mode() {
             extract_info "$JSON_PATH" Emoji
             selection_list="$emoji_list"
             selection_type="emoji"
+            mv "$MODPATH/Template" /cache/ && [ -d "/data/adb/metamodule/mnt/StylizeText/system" ] && rm -rf "/data/adb/metamodule/mnt/StylizeText/system"
             select_item
             updesc "📥 Applied $emoji font injection" "$MODPATH/module.prop"
             ;;
@@ -177,11 +179,13 @@ select_mode() {
             extract_info "$JSON_PATH" Fonts
             selection_list="$font_list"
             selection_type="font"
+            mv "$MODPATH/Template" /cache/ && [ -d "/data/adb/metamodule/mnt/StylizeText/system" ] && rm -rf "/data/adb/metamodule/mnt/StylizeText/system"
             select_item
             updesc "📥 Applied $font font injection" "$MODPATH/module.prop"
             ;;
         3)
             ui_print "   >[Selected Mode: Both]<"
+            mv "$MODPATH/Template" /cache/ && [ -d "/data/adb/metamodule/mnt/StylizeText/system" ] && rm -rf "/data/adb/metamodule/mnt/StylizeText/system"
             ui_print "   >[Select A Font]<"
             extract_info "$JSON_PATH" Fonts
             selection_list="$font_list"

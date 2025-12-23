@@ -99,22 +99,6 @@
             </div>
             <div class="modal-content terminal-wrapper">
                 <pre id="terminalOutput">Waiting for command...</pre>
-                <div id="termActionButtons" class="term-actions" style="display:none;"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="mtfModal" class="modal-overlay">
-        <div class="modal-box curvy-modal">
-            <div class="modal-header">
-                <h3 id="mtfTitle"></h3>
-            </div>
-            <div class="modal-content">
-                <p id="mtfDescription"></p>
-                <div class="mtf-actions">
-                    <button id="mtfYesBtn" class="mtf-btn yes-btn" onclick="window.fontUI.doSoftReboot()"></button>
-                    <button id="mtfNoBtn" class="mtf-btn no-btn" onclick="window.fontUI.closeMtfModal()"></button>
-                </div>
             </div>
         </div>
     </div>
@@ -151,18 +135,14 @@
                     <p class="warning-text">Warning: Do not modify these settings unless you know what you are doing.</p>
                     <div class="preset-container">
                         <button class="preset-card ksu-btn" onclick="window.fontUI.applyPreset('ksu')">
-                            <div class="preset-icon">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
-                            </div>
+                            <div class="preset-icon"></div>
                             <div class="preset-info">
                                 <span class="preset-title">KernelSU</span>
                                 <span class="preset-desc">Apply KSU Paths</span>
                             </div>
                         </button>
                         <button class="preset-card apatch-btn" onclick="window.fontUI.applyPreset('apatch')">
-                            <div class="preset-icon">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                            </div>
+                            <div class="preset-icon"></div>
                             <div class="preset-info">
                                 <span class="preset-title">APatch</span>
                                 <span class="preset-desc">Apply APD Paths</span>

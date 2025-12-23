@@ -1,4 +1,5 @@
 #!/system/bin/sh
+# FontCraft Core Functions Logic - Don't modify anything after this - By AshBorn (@Ripper_Hybrid)
 
 set -x
 font=none
@@ -250,7 +251,7 @@ get_working_mirror() {
             continue
         fi
         
-        ui_print "   >🔃 [Testing mirror $((i + 1)): $repo]< "
+        ui_print "   >[🔃 Testing mirror $((i + 1)): $repo]< "
         
         if wget -T 10 -q --spider "$test_url" >/dev/null 2>&1; then
             ui_print "   >[✅ Mirror $((i + 1)) is working! Using: $repo]< "

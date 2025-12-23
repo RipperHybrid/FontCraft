@@ -1,6 +1,7 @@
 import { CONFIG, STATE } from './config.js';
 import { ksuExec, toMono, wait } from './utils.js';
 import { processAndFlash } from './flasher.js';
+import { StylizeTextIcons } from './icons.js';
 
 class FontCraftUI {
     constructor() {
@@ -17,6 +18,7 @@ class FontCraftUI {
         this.filePickerPromise = { resolve: null, reject: null };
         this.settingsWasOpen = false;
         this.commandHistory = [];
+        this.fetchError = null;
         this.init();
     }
 
@@ -38,9 +40,19 @@ class FontCraftUI {
         this.loadTheme();
         this.setupListeners();
         this.injectSettingsUI();
+        this.injectStaticIcons();
         await this.detectRootManager();
+        await this.ksuExec(`mkdir -p "${CONFIG.TEMP_DIR}"`);
         this.fetchLibrary();
         this.updateBuildUI();
+    }
+
+    injectStaticIcons() {
+        const ksuContainer = document.querySelector('.ksu-btn .preset-icon');
+        if(ksuContainer) ksuContainer.innerHTML = StylizeTextIcons.getKsuIcon();
+
+        const apatchContainer = document.querySelector('.apatch-btn .preset-icon');
+        if(apatchContainer) apatchContainer.innerHTML = StylizeTextIcons.getApatchIcon();
     }
 
     injectSettingsUI() {
@@ -289,26 +301,40 @@ class FontCraftUI {
     async fetchLibrary() {
         const loader = document.getElementById('loader');
         const grid = document.getElementById('gridContainer');
+        const repoDisplay = document.getElementById('repo-source');
+        
         try {
+            this.fetchError = null;
             loader.style.display = 'flex';
             loader.innerHTML = '<div class="spinner"></div><p>Connecting...</p>';
             grid.innerHTML = '';
+            
             if (!(await this.checkInternet())) throw new Error("No internet connection");
-            await this.ksuExec(`mkdir -p "${CONFIG.TEMP_DIR}"`);
+            
             if (this.activeJsonUrl === CONFIG.DEFAULT_JSON_URL) this.activeJsonUrl = await this.getWorkingMirror();
+            
             loader.querySelector('p').innerText = "Loading Fonts...";
+            
             if (typeof ksu !== 'undefined') {
                 const jsonStr = await this.ksuExec(`${STATE.BB} wget -q --no-check-certificate -O - "${this.activeJsonUrl}"`);
-                try { this.data = JSON.parse(jsonStr); } catch(e) { throw new Error("Invalid JSON data received via shell"); }
+                try { this.data = JSON.parse(jsonStr); } catch(e) { throw new Error("Invalid JSON data received"); }
             } else {
                 const response = await fetch(this.activeJsonUrl);
                 if(!response.ok) throw new Error("Failed to fetch JSON");
                 this.data = await response.json();
             }
+            
             loader.style.display = 'none';
             this.renderGrid(this.currentCategory);
+            
         } catch (error) {
-            loader.innerHTML = `<p style="color:var(--error)">Error: ${error.message}</p><button onclick="window.fontUI.fetchLibrary()" class="install-btn">Retry</button>`;
+            this.fetchError = error;
+            loader.style.display = 'none';
+            if(repoDisplay) {
+                repoDisplay.innerText = "Connection Failed";
+                repoDisplay.style.color = "var(--danger)";
+            }
+            this.renderGrid(this.currentCategory);
         }
     }
 
@@ -324,10 +350,34 @@ class FontCraftUI {
             customCard.innerHTML = `<div class="card-preview" style="display:flex; align-items:center; justify-content:center; flex-direction:column; padding:10px; background: var(--bg-tertiary);">${StylizeTextIcons.getUploadIcon()}<span style="margin-top: 8px; font-size: 0.9em; color: var(--text-secondary);">Local File</span></div><div class="card-info"><div class="card-title">${cardTitle}</div><button class="install-btn" onclick="window.fontUI.selectAndAddCustomFont('${category}')">Select .ttf</button></div>`;
             grid.appendChild(customCard);
         }
-        if (!this.data || !this.data[category]) {
-            grid.innerHTML = '<p>No items found.</p>';
+
+        if (this.fetchError) {
+            const errorContainer = document.createElement('div');
+            errorContainer.style.cssText = "grid-column: 1 / -1; width: 100%; display: flex; justify-content: center; margin-top: 20px;";
+            errorContainer.innerHTML = `
+                <div class="offline-message">
+                    <div class="offline-icon">${StylizeTextIcons.getOfflineIcon()}</div>
+                    <div class="offline-title">Connection Failed</div>
+                    <div class="offline-desc">${this.fetchError.message}</div>
+                    <button onclick="window.fontUI.fetchLibrary()" class="retry-btn">
+                        <span>↻</span> Try Again
+                    </button>
+                </div>
+            `;
+            grid.appendChild(errorContainer);
             return;
         }
+        
+        if (!this.data || !this.data[category]) {
+            if (grid.children.length === 0 || (grid.children.length === 1 && (category === 'Fonts' || category === 'Emoji'))) {
+                const msg = document.createElement('p');
+                msg.style.cssText = 'grid-column: 1 / -1; text-align:center; width:100%; color:var(--text-secondary); margin-top: 20px;';
+                msg.innerText = 'No items found.';
+                grid.appendChild(msg);
+            }
+            return;
+        }
+
         const items = this.data[category];
         Object.keys(items).forEach(folderName => {
             const itemData = items[folderName];
@@ -384,6 +434,7 @@ class FontCraftUI {
             this.unlockModal(modal, closeBtn);
             return;
         }
+        ksu.toast(`Starting download process...`);
         const destPath = `${CONFIG.TEMP_DIR}/${category}_${filename}`;
         const originalText = btnElement.innerText;
         btnElement.disabled = true;
@@ -773,11 +824,18 @@ class FontCraftUI {
         itemEl.className = 'file-item';
         itemEl.dataset.type = type;
         itemEl.dataset.name = name;
-        let icon = (type === 'dir') ? StylizeTextIcons.getFolderIcon() : StylizeTextIcons.getFileIcon();
-        if(type === 'volume') {
-             if (name === "Internal Storage") icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 18h4"/><path d="M12 2v20"/><rect x="5" y="2" width="14" height="20" rx="2"/></svg>`;
-             else icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M10 2v4h4"/></svg>`;
+
+        let icon;
+        if (type === 'volume') {
+            icon = (name === "Internal Storage") 
+                ? StylizeTextIcons.getInternalStorageIcon() 
+                : StylizeTextIcons.getSdCardIcon();
+        } else if (type === 'dir') {
+            icon = StylizeTextIcons.getFolderIcon();
+        } else {
+            icon = StylizeTextIcons.getFileIcon();
         }
+
         const text = (name === '..') ? '.. (Up)' : name;
         itemEl.innerHTML = `${icon}<span>${text}</span>`;
         itemEl.style.animationDelay = `${delay}s`;
@@ -910,12 +968,6 @@ class FontCraftUI {
         } else {
             this.closeCustomFilePicker();
         }
-    }
-
-    async doReboot() {
-        const btn = document.querySelector('.term-btn.reboot');
-        if (typeof ksu !== 'undefined') ksu.toast("🔃 Rebooting...");
-        await this.ksuExec('su -c "reboot"');
     }
 }
 
