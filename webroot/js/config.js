@@ -1,11 +1,18 @@
+const MODULE_ID = "StylizeText";
+const MODULE_PATH = `/data/adb/modules/${MODULE_ID}`;
+
 export const CONFIG = {
     MIRRORS_URL: "https://fontcraft.pages.dev/mirrors.json",
     DEFAULT_JSON_URL: "https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/fonts.json",
     TEMPLATE_URL: "https://fontcraft.pages.dev/template.zip",
+    
     TEMP_DIR: "/data/local/tmp/fontcraft_cache",
     BUILD_DIR: "/data/local/tmp/fontcraft_build",
     STORAGE_ROOT: "Start_At_Volume_List",
-    MOD_BIN: "/data/adb/modules/StylizeText/binaries",
+    
+    MOD_BIN: `${MODULE_PATH}/binaries`,
+    LOCAL_TEMPLATE: "/cache/Template/template.zip",
+
     SYSTEM_FONTS: [
         "Roboto-Regular.ttf", "RobotoStatic-Regular.ttf", "RobotoFlex-Regular.ttf", 
         "DroidSansMono.ttf", "CutiveMono.ttf", "NotoSerif-Regular.ttf", 

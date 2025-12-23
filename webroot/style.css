@@ -258,12 +258,74 @@ body {
 }
 
 .loading-container {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+    width: 100%;
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.offline-message {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 50px;
+    padding: 24px;
+    background: rgba(244, 63, 94, 0.08);
+    border: 1px solid rgba(244, 63, 94, 0.2);
+    border-radius: 16px;
+    text-align: center;
+    max-width: 400px;
+    width: 100%;
+}
+
+.offline-icon {
+    font-size: 2.5em;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 0 10px rgba(244, 63, 94, 0.4));
+}
+
+.offline-title {
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 1.1em;
+    margin-bottom: 6px;
+}
+
+.offline-desc {
     color: var(--text-secondary);
+    font-size: 0.9em;
+    margin-bottom: 20px;
+}
+
+.retry-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 10px 30px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9em;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.retry-btn:hover {
+    background: var(--error);
+    color: white;
+    border-color: var(--error);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(244, 63, 94, 0.3);
+}
+
+.retry-btn:active {
+    transform: scale(0.95);
 }
 
 .grid-container {
@@ -1050,31 +1112,4 @@ body.modal-open .app {
         transform: scale(1);
         opacity: 1;
     }
-}
-
-.term-actions {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    padding: 15px;
-    border-top: 1px solid var(--border);
-    margin-top: 0;
-    background: var(--bg-secondary);
-}
-
-.term-btn {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 0.9em;
-    cursor: pointer;
-    font-family: monospace;
-}
-
-.term-btn.reboot {
-    background: var(--accent);
-    color: #000;
-    border: none;
 }
