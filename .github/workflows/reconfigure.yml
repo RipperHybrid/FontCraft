@@ -51,8 +51,6 @@ jobs:
           allowed_extensions = {".ttf", ".otf"}
           categories = ["Emoji", "Fonts"]
 
-          print(f"Scanning {repo} on branch {branch}...")
-
           for category in sorted(categories):
               category_path = os.path.join(repo_dir, category)
 
@@ -74,7 +72,7 @@ jobs:
                       files_list = []
                       for f in scan_fonts:
                           file_path = os.path.join(folder_path, f)
-                          file_size = os.path.getsize(file_path) # Gets the file size in bytes
+                          file_size = os.path.getsize(file_path)
                           raw_url = f"{base_url}/{quote(f'{category}/{folder}/{f}')}"
 
                           files_list.append({
@@ -110,8 +108,6 @@ jobs:
           with open(output_md, "w") as md_file:
               md_file.write(md_content)
 
-          print("fonts.json and Preview.md generated successfully.")
-
       - name: Commit and Push to GitHub
         run: |
           git config --global user.name "github-actions[bot]"
@@ -125,14 +121,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push to GitLab (Safe Sync)
+      - name: Push to GitLab
+        continue-on-error: true
         env:
           TARGET_REPO: "gitlab.com/RipperHybrid/FontCraft.git"
         run: |
           git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@${{ env.TARGET_REPO }}
-          # Removed --force to bypass GitLab's protected branch error.
-          git push gitlab HEAD:${{ github.ref_name }}
-          git push gitlab --tags
+          git push gitlab HEAD:${{ github.ref_name }} --force
+          git push gitlab --tags --force
 
   release:
     needs: update-json
@@ -187,15 +183,11 @@ jobs:
           BODY_FILE="${{ steps.metadata.outputs.body_file }}"
 
           if gh release view "$TAG" > /dev/null 2>&1; then
-            echo "Release $TAG exists. Appending edited footer."
-
             NOW_DATE=$(date +'%Y-%m-%d')
             NOW_TIME=$(date +'%H:%M:%S')
 
             echo "" >> "$BODY_FILE"
             echo "- Edited: Date: $NOW_DATE Time: $NOW_TIME" >> "$BODY_FILE"
-          else
-            echo "New release. No footer added."
           fi
 
       - name: Upload to GitHub Release
@@ -224,12 +216,10 @@ jobs:
           SERVER_URL: ${{ github.server_url }}
         run: |
           if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ]; then
-            echo "Secrets missing. Skipping Telegram upload."
             exit 0
           fi
 
           if [ ! -f "$ZIP_NAME" ]; then
-            echo "File $ZIP_NAME not found."
             exit 1
           fi
 
