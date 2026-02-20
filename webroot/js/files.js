@@ -1,5 +1,6 @@
 import { CONFIG, STATE } from './config.js';
 import { StylizeTextIcons } from './icons.js';
+import { showToast } from './utils.js';
 
 export async function detectStorageVolumes() {
     const volumes = [];
@@ -31,8 +32,7 @@ export async function detectStorageVolumes() {
 export async function openCustomFilePicker(category) {
     if(this.pickerMode === 'font' && this.queue[category] !== null) {
         const msg = `Already selected a ${category}. Clear it first!`;
-        if(typeof ksu !== 'undefined') ksu.toast(msg);
-        else alert(msg);
+        showToast(msg, 'warning');
         return Promise.reject(new Error(msg));
     }
     const modal = document.getElementById('fileSelectorModal');
@@ -219,7 +219,7 @@ export async function handleFileBrowserClick(e) {
             else if (this.binarySelectionType === 'installer') STATE.ROOT_CMD = filePath;
             this.updateSettingsUI();
             this.closeCustomFilePicker("Binary selected");
-            if(typeof ksu !== 'undefined') ksu.toast(`Updated ${this.binarySelectionType}`);
+            showToast(`Updated ${this.binarySelectionType}`, 'success');
         } else {
             if (this.filePickerPromise.resolve) this.filePickerPromise.resolve({path: filePath, name: name});
             this.closeCustomFilePicker("File selected");
@@ -255,7 +255,7 @@ export async function handleFileBrowserBack() {
         await this.listFilesInPath(CONFIG.STORAGE_ROOT);
         return;
     }
-    let limit = (this.pickerMode === 'binary') ? "/data/adb" : "/mnt"; 
+    let limit = (this.pickerMode === 'binary') ? "/data/adb" : "/mnt";
     if (this.currentFilePath !== limit && this.currentFilePath.length > limit.length) {
         let newPath = this.currentFilePath.substring(0, this.currentFilePath.lastIndexOf('/'));
         this.currentFilePath = newPath;

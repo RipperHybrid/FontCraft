@@ -5,16 +5,16 @@
   <br>
   <img src="https://img.shields.io/badge/Compatible%20with-Magisk%20%7C%20KernelSU%20%7C%20APatch-blueviolet" alt="Compatibility Badge">
   <br>
-  
+
   <a href="https://github.com/RipperHybrid/FontCraft/releases/latest">
     <img src="https://img.shields.io/github/v/release/RipperHybrid/FontCraft?label=Latest%20Release&logo=git&logoColor=white&color=18673F&labelColor=2E2E3F&style=flat" alt="Latest Release">
   </a>
-  
+
   <a href="https://fontcraft.pages.dev/">
     <img src="https://img.shields.io/website?url=https%3A%2F%2Ffontcraft.pages.dev&up_message=Online&style=flat&logo=cloudflare&label=Cloudflare%20Page&color=F38020&logoColor=white" alt="Website Status">
   </a>
   <br>
-  
+
   <a href="https://github.com/RipperHybrid/FontCraft">
     <img src="https://img.shields.io/github/commit-activity/t/RipperHybrid/FontCraft?label=Total%20Commits&logo=git&logoColor=white&color=18673F&labelColor=2E2E3F&style=flat" alt="Total Commits">
   </a>
@@ -22,7 +22,7 @@
     <img src="https://img.shields.io/github/last-commit/RipperHybrid/FontCraft?label=Last%20Commit&logo=git&logoColor=white&color=18673F&labelColor=2E2E3F&style=flat" alt="Last Commit">
   </a>
   <br>
-  
+
   <a href="https://github.com/RipperHybrid/FontCraft/releases">
     <img src="https://img.shields.io/github/downloads/RipperHybrid/FontCraft/total?label=Total%20Downloads&logo=github&logoColor=orange&color=18673F&labelColor=2E2E3F&style=flat" alt="Total Downloads">
   </a>
@@ -40,7 +40,7 @@
 
 > **⚠️ Notice: Resilience & Backup Plans**
 > Following a recent temporary suspension of this account, I have updated the infrastructure to prevent future disruptions:
-> 
+>
 > 1.  **Updates:** The update check has moved to **Cloudflare**. Your module will check for updates reliably, regardless of GitHub's status.
 > 2.  **Mirrors:** This repository is fully synchronized with [**GitLab**](https://gitlab.com/RipperHybrid/FontCraft).
 
@@ -73,9 +73,9 @@ I believe in full transparency for root modules. **Nothing in this project is ob
 * **GMS Cleaner:** Built-in action to disable Google Play Services font syncing if it overrides your custom emojis.
 * **Theming Engine:** Choose your vibe with **Dark**, **Light**, and **Retro (Amber)** modes.
 * **Universal Compatibility:**
-    * ✅ **Magisk** (CLI Mode)
-    * ✅ **KernelSU** (WebUI Mode)
-    * ✅ **APatch** (WebUI Mode)
+    * ✅ **Magisk** (CLI Mode + WebUI Mode)
+    * ✅ **KernelSU** (CLI Mode + WebUI Mode)
+    * ✅ **APatch** (CLI Mode + WebUI Mode)
     * ✅ **Android 15 (Tested on Nothing OS)**
 
 ---
@@ -93,7 +93,7 @@ I am actively working on expanding FontCraft. Here is what is coming next:
 
 * [x] ~~**Custom Repository Support:** A feature in the WebUI to allow users to input their own source URLs.~~
 * [x] ~~**Offline Installation Support:** Local template caching for data-free flashing.~~
-* [ ] **Magisk WebUI Support:** Porting the full WebUI experience to Magisk users.
+* [x] ~~**Magisk WebUI Support:** Porting the full WebUI experience to Magisk users.~~
     * *Note:* This is technically possible but requires significant architectural changes. It is a long-term goal.
 
 ## 📥 How WebUI Works (KSU & APatch)

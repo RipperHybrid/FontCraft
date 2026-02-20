@@ -1,0 +1,62 @@
+#!/system/bin/sh
+
+# FontCraft Command Executor - Localhost Bridge
+
+BB=""
+for candidate in /data/adb/ksu/bin/busybox /data/adb/magisk/busybox /data/adb/ap/bin/busybox; do
+    [ -x "$candidate" ] && BB="$candidate" && break
+done
+
+# If no busybox found, fail
+[ -z "$BB" ] && echo '{"code": 1, "stdout": "Error: BusyBox not found"}' && exit 1
+
+# Export PATH
+BB_DIR=$(dirname "$BB")
+export PATH="$BB_DIR:$PATH"
+
+# Token check
+TOKEN_FILE="../nexus/uplink_key"
+if [ -f "$TOKEN_FILE" ]; then
+    REAL_TOKEN=$(cat "$TOKEN_FILE" 2>/dev/null)
+    INCOMING_TOKEN=$(echo "$HTTP_X_FONTCRAFT_TOKEN" | tr -d '[:space:]')
+    [ -n "$REAL_TOKEN" ] && [ "$INCOMING_TOKEN" != "$REAL_TOKEN" ] && exit 1
+fi
+
+# Heartbeat
+[ -f "../../.session_state" ] && echo "$(cat ../nexus/server_port) $(($(date +%s) + 300)) $(date +%s)" > "../../.session_state"
+
+# Read command
+RAW_CMD=$(cat)
+
+# Check if command already starts with busybox path
+if echo "$RAW_CMD" | grep -qE "^/data/adb/.*/busybox "; then
+    # Command already has busybox, use as-is
+    if echo "$RAW_CMD" | grep -qE "/data/adb/modules|module install|--install-module|/system/fonts"; then
+        OUTPUT=$(su -c "$RAW_CMD" 2>&1)
+    else
+        OUTPUT=$($RAW_CMD 2>&1)
+    fi
+    EXITCODE=$?
+else
+    # Prefix with busybox
+    if echo "$RAW_CMD" | grep -qE "/data/adb/modules|module install|--install-module|/system/fonts"; then
+        OUTPUT=$(su -c "$BB sh -c '$RAW_CMD'" 2>&1)
+    else
+        OUTPUT=$($BB sh -c "$RAW_CMD" 2>&1)
+    fi
+    EXITCODE=$?
+fi
+
+# Return JSON
+echo "Content-Type: application/json"
+echo "Cache-Control: no-store"
+echo ""
+
+# Use jq if available, fallback to sed
+JQ="/data/adb/modules/StylizeText/binaries/jq"
+if [ -x "$JQ" ]; then
+    printf '%s' "$OUTPUT" | "$JQ" -Rs --argjson code "$EXITCODE" '{code: $code, stdout: .}'
+else
+    SAFE_OUT=$(printf '%s' "$OUTPUT" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e ':a;N;$!ba;s/\n/\\n/g')
+    printf '{"code": %d, "stdout": "%s"}\n' "$EXITCODE" "$SAFE_OUT"
+fi

@@ -1,16 +1,24 @@
-# FontCraft v5.8 - Version Changelog
+# FontCraft v5.9 - Major Release
 
-### ⚡ Stability & Offline Support
+### 🚀 Major New Features
+- **Magisk WebUI Support:** Full WebUI experience now available for Magisk users via new bridge system
+- **Browser Bridge Download:** Fallback download system streams through browser when wget fails
+- **Toast Notification System:** Visual notifications with success/error/warning/info types
+- **New Emoji Pack:** Added SamsungOneUi5_beta4 emoji pack back
 
-#### ✨ New Features
-* **Offline Installation Support:** The installation template is now stored locally on your device. You can now install local `.ttf` files without needing an active internet connection (Data-free installation).
-* **Revised Safety Protocol:** The "Metamodule Detected" logic has been updated.
-    * **Removed Auto-Reboot:** The forced 5-second auto-reboot sequence has been removed as it is no longer necessary.
-    * **Updated Warning:** The safety popup now specifically warns about potential "Live Patching" side effects (such as text disappearing or UI freezing) and advises a manual reboot or force restart (Power + Vol Up) only if necessary.
+### 🛠 Core Improvements
+- **Modular Architecture:** Created shared `utils.sh` with all core functions
+- **Interactive Action Menu:** Vol+ select / Vol- navigate with WebUI launcher, GMS cleaner, and exit options
+- **Process Locking:** Prevents duplicate service instances with lock directory
+- **Session Management:** Auto-shutdown after 10min max / 5min idle
 
-#### 🛠 Technical Changes
-* **Codebase Optimization:** Massive cleanup performed. Removed a significant amount of unnecessary code and redundant logic to reduce footprint and improve efficiency.
-* **UI Adjustments:** Subtle UI tweaks to better support the new offline workflow and local template handling.
+### 🎨 WebUI Updates
+- **Retro Default Theme:** Reduced to 2 themes (Light/Retro) with Retro as default
+- **Magisk Preset:** Added Magisk preset with proper installation args
+- **File Size Display:** Shows file sizes in download modal (from JSON metadata)
+- **Download Verification:** Byte-accurate size checking
 
-#### 🐛 Bug Fixes
-* **Fixed WebUI Crash:** Successfully identified and patched the root cause of the WebUI crash during the flashing process (which allowed for the removal of the auto-reboot workaround).
+### 🔧 Technical
+- **GitHub Workflow:** Added size_bytes field and GitLab sync
+- **Better Fallbacks:** Multiple binary detection paths and download methods
+- **Fixed:** wget HTTPS issues, duplicate instances, file browser quoting
