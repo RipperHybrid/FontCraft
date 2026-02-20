@@ -1,6 +1,7 @@
 #!/system/bin/sh
 
 logfont="/cache/fontcraft.log"
+LOCKDIR="/dev/fontcraft_lock"
 
 [ -d /data/adb/ksu ] || [ -f /data/adb/ksu/ksu ] && KSU=1
 
@@ -19,6 +20,14 @@ fi
 logit() {
     echo "$(date '+%Y-%m-%d %I:%M:%S %p') - $1" >> "$logfont"
 }
+
+# Define a lock directory in /dev (RAM) to prevent parallel execution
+if mkdir "$LOCKDIR" 2>/dev/null; then
+    log "Lock acquired: Main instance starting (PID=$$)"
+else
+    log "Duplicate instance detected (PID=$$). Exiting."
+    exit 0
+fi
 
 logit "StylizeText service started"
 
@@ -57,14 +66,14 @@ REMOVE_FONTS() {
             logit "Deleted $file_count font files directly in files directory"
             DELETED=1
         fi
-        
+
         find /data/fonts/files -maxdepth 1 -type d -name "~~*" 2>/dev/null | \
         while IFS= read -r folder; do
             if [ "$folder" != "/data/fonts/files" ] && [ -n "$folder" ]; then
                 ttf_count=$(find "$folder" -maxdepth 1 -type f -name "*.ttf" 2>/dev/null | wc -l)
                 otf_count=$(find "$folder" -maxdepth 1 -type f -name "*.otf" 2>/dev/null | wc -l)
                 total_count=$((ttf_count + otf_count))
-                
+
                 if [ $total_count -gt 0 ]; then
                     rm -rf "$folder"
                     folder_name=$(basename "$folder")
@@ -73,7 +82,7 @@ REMOVE_FONTS() {
                 fi
             fi
         done
-        
+
         if [ -f /tmp/fonts_deleted.flag ]; then
             DELETED=1
             rm -f /tmp/fonts_deleted.flag
@@ -86,13 +95,13 @@ REMOVE_FONTS() {
 while true; do
     REMOVE_FONTS
     DELETED=$?
-    
+
     if [ $DELETED -eq 1 ]; then
         for i in 1 2 3 4 5 6 7 8 9 10; do
             su 2000 -c "cmd notification post -t \"$method\" \"StylizeText\" \"StylizeText: Fonts/Emojis error fixed. Reboot recommended.\"" && break
             sleep 1
         done
     fi
-    
+
     sleep 2500
 done
