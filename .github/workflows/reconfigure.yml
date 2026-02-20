@@ -125,13 +125,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push to GitLab
+      - name: Push to GitLab (Safe Sync)
         env:
           TARGET_REPO: "gitlab.com/RipperHybrid/FontCraft.git"
         run: |
           git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@${{ env.TARGET_REPO }}
-          git push gitlab --all --force
-          git push gitlab --tags --force
+          # Removed --force to bypass GitLab's protected branch error.
+          git push gitlab HEAD:${{ github.ref_name }}
+          git push gitlab --tags
 
   release:
     needs: update-json
