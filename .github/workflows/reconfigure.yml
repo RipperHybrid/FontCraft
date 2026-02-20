@@ -203,6 +203,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Send to Telegram
+        continue-on-error: true
         if: always()
         env:
           BOT_TOKEN: ${{ secrets.BOTAPI }}
@@ -245,6 +246,5 @@ jobs:
           curl -v -F "chat_id=$CHAT_ID" \
                -F "document=@$ZIP_NAME" \
                -F "caption=$CAPTION" \
-               -F "parse_mode=Markdown" \
                -F "reply_markup=$KEYBOARD_JSON" \
                "https://api.telegram.org/bot$BOT_TOKEN/sendDocument"
