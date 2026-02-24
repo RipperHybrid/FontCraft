@@ -3,6 +3,13 @@ import { ksuExec, wait, showToast } from './utils.js';
 import { processAndFlash } from './flasher.js';
 import { StylizeTextIcons } from './icons.js';
 
+function formatSize(bytes) {
+    if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + ' GB';
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(2) + ' MB';
+    if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return bytes + ' B';
+}
+
 class FontCraftUI {
     constructor() {
         this.data = null;
@@ -49,13 +56,13 @@ class FontCraftUI {
 
     injectStaticIcons() {
         const ksuContainer = document.querySelector('.ksu-btn .preset-icon');
-        if(ksuContainer) ksuContainer.innerHTML = StylizeTextIcons.getKsuIcon();
+        if (ksuContainer) ksuContainer.innerHTML = StylizeTextIcons.getKsuIcon();
 
         const apatchContainer = document.querySelector('.apatch-btn .preset-icon');
-        if(apatchContainer) apatchContainer.innerHTML = StylizeTextIcons.getApatchIcon();
+        if (apatchContainer) apatchContainer.innerHTML = StylizeTextIcons.getApatchIcon();
 
         const magiskContainer = document.querySelector('.magisk-btn .preset-icon');
-        if(magiskContainer) magiskContainer.innerHTML = StylizeTextIcons.getMagiskIcon();
+        if (magiskContainer) magiskContainer.innerHTML = StylizeTextIcons.getMagiskIcon();
     }
 
     injectSettingsUI() {
@@ -119,7 +126,7 @@ class FontCraftUI {
         if (argsInput) {
             argsInput.value = STATE.INSTALL_ARGS;
             const preview = document.getElementById('cmdPreview');
-            if(preview) preview.innerText = STATE.INSTALL_ARGS;
+            if (preview) preview.innerText = STATE.INSTALL_ARGS;
         }
     }
 
@@ -138,7 +145,7 @@ class FontCraftUI {
             log = 'No commands executed yet.';
         } else {
             log = this.commandHistory.map((entry, idx) =>
-                `[${idx+1}] ${entry.time}\nCMD: ${entry.command}\n${entry.error ? `ERR: ${entry.error}` : `OUT: ${entry.output}`}\n`
+                `[${idx + 1}] ${entry.time}\nCMD: ${entry.command}\n${entry.error ? `ERR: ${entry.error}` : `OUT: ${entry.output}`}\n`
             ).join('\n-------------------\n');
         }
         document.getElementById('debugOutput').innerText = log;
@@ -169,8 +176,8 @@ class FontCraftUI {
 
     cleanup() {
         if (typeof ksu !== 'undefined' && typeof ksu.exec === 'function') {
-             ksu.exec(`rm -rf "${CONFIG.TEMP_DIR}"`, "{}", () => {});
-             ksu.exec(`rm -rf "${CONFIG.BUILD_DIR}"`, "{}", () => {});
+            ksu.exec(`rm -rf "${CONFIG.TEMP_DIR}"`, "{}", () => {});
+            ksu.exec(`rm -rf "${CONFIG.BUILD_DIR}"`, "{}", () => {});
         } else if (STATE.ROOT_BIN) {
             this.ksuExec(`rm -rf "${CONFIG.TEMP_DIR}"`);
             this.ksuExec(`rm -rf "${CONFIG.BUILD_DIR}"`);
@@ -187,7 +194,7 @@ class FontCraftUI {
         document.body.classList.add(`${theme}-mode`);
         localStorage.setItem('fontcraft-theme', theme);
         const btn = document.getElementById('themeToggle');
-        if(btn) {
+        if (btn) {
             if (theme === 'light') btn.innerHTML = StylizeTextIcons.getLightModeIcon();
             else btn.innerHTML = StylizeTextIcons.getRetroIcon();
         }
@@ -213,7 +220,7 @@ class FontCraftUI {
         document.getElementById('settingsBtn').innerHTML = StylizeTextIcons.getSettingsIcon();
         document.querySelector('#installModal .close-modal').addEventListener('click', () => {
             const modal = document.getElementById('installModal');
-            if(!modal.classList.contains('locked')) {
+            if (!modal.classList.contains('locked')) {
                 modal.classList.remove('active');
                 this.toggleBodyLock(false);
             }
@@ -222,20 +229,20 @@ class FontCraftUI {
             box.addEventListener('click', (e) => e.stopPropagation());
         });
         document.getElementById('installModal').addEventListener('click', (e) => {
-            if(e.target.id === 'installModal' && !e.target.classList.contains('locked')) {
+            if (e.target.id === 'installModal' && !e.target.classList.contains('locked')) {
                 e.target.classList.remove('active');
                 this.toggleBodyLock(false);
             }
         });
         document.getElementById('fileSelectorModal').addEventListener('click', (e) => {
-            if(e.target.id === 'fileSelectorModal') this.closeCustomFilePicker();
+            if (e.target.id === 'fileSelectorModal') this.closeCustomFilePicker();
         });
         document.getElementById('file-selector-back').innerHTML = StylizeTextIcons.getBackIcon();
     }
 
     updateRepoDisplay() {
         const el = document.getElementById('repo-source');
-        if(el) {
+        if (el) {
             el.innerText = `Source: ${this.activeRepoName}`;
             el.style.color = 'var(--accent)';
             setTimeout(() => el.style.color = 'var(--text-secondary)', 1000);
@@ -245,13 +252,13 @@ class FontCraftUI {
     async getWorkingMirror() {
         if (this.activeJsonUrl !== CONFIG.DEFAULT_JSON_URL) return this.activeJsonUrl;
         const loader = document.getElementById('loader');
-        if(loader && loader.style.display !== 'none') {
-             const p = loader.querySelector('p') || document.createElement('p');
-             if(!loader.querySelector('p')) loader.appendChild(p);
-             p.innerText = "Fetching mirror list...";
+        if (loader && loader.style.display !== 'none') {
+            const p = loader.querySelector('p') || document.createElement('p');
+            if (!loader.querySelector('p')) loader.appendChild(p);
+            p.innerText = "Fetching mirror list...";
         }
         const repoDisplay = document.getElementById('repo-source');
-        if(repoDisplay) repoDisplay.innerText = "Checking Mirrors...";
+        if (repoDisplay) repoDisplay.innerText = "Checking Mirrors...";
         try {
             const response = await fetch(CONFIG.MIRRORS_URL, { cache: "no-store" });
             if (!response.ok) throw new Error("Failed to fetch mirrors.json");
@@ -263,8 +270,8 @@ class FontCraftUI {
             }
             for (let i = 0; i < data.mirrors.length; i++) {
                 const mirror = data.mirrors[i];
-                if(loader && loader.style.display !== 'none') loader.querySelector('p').innerText = `Testing: ${mirror.repo}...`;
-                if(repoDisplay) repoDisplay.innerText = `Testing: ${mirror.repo}`;
+                if (loader && loader.style.display !== 'none') loader.querySelector('p').innerText = `Testing: ${mirror.repo}...`;
+                if (repoDisplay) repoDisplay.innerText = `Testing: ${mirror.repo}`;
                 try {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -308,7 +315,7 @@ class FontCraftUI {
             loader.querySelector('p').innerText = "Loading Fonts...";
 
             const response = await fetch(this.activeJsonUrl);
-            if(!response.ok) throw new Error("Failed to fetch JSON");
+            if (!response.ok) throw new Error("Failed to fetch JSON");
             this.data = await response.json();
 
             loader.style.display = 'none';
@@ -317,7 +324,7 @@ class FontCraftUI {
         } catch (error) {
             this.fetchError = error;
             loader.style.display = 'none';
-            if(repoDisplay) {
+            if (repoDisplay) {
                 repoDisplay.innerText = "Connection Failed";
                 repoDisplay.style.color = "var(--danger)";
             }
@@ -330,11 +337,25 @@ class FontCraftUI {
         const grid = document.getElementById('gridContainer');
         grid.innerHTML = '';
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.innerText.includes(category)));
+
         if (category === 'Fonts' || category === 'Emoji') {
             const customCard = document.createElement('div');
             customCard.className = 'font-card';
             const cardTitle = category === 'Fonts' ? 'Custom Font' : 'Custom Emoji';
-            customCard.innerHTML = `<div class="card-preview" style="display:flex; align-items:center; justify-content:center; flex-direction:column; padding:10px; background: var(--bg-tertiary);">${StylizeTextIcons.getUploadIcon()}<span style="margin-top: 8px; font-size: 0.9em; color: var(--text-secondary);">Local File</span></div><div class="card-info"><div class="card-title">${cardTitle}</div><button class="install-btn" onclick="window.fontUI.selectAndAddCustomFont('${category}')">Select .ttf</button></div>`;
+            const selectedItem = this.queue[category];
+            let buttonText = 'Select .ttf';
+            let sizeText = '';
+
+            if (selectedItem) {
+                buttonText = selectedItem.filename;
+                if (selectedItem.size) {
+                    sizeText = `<div class="card-size">${selectedItem.size}</div>`;
+                }
+            } else {
+                sizeText = `<div class="card-size">Not Selected</div>`;
+            }
+
+            customCard.innerHTML = `<div class="card-preview" style="display:flex; align-items:center; justify-content:center; flex-direction:column; padding:10px; background: var(--bg-tertiary);">${StylizeTextIcons.getUploadIcon()}<span style="margin-top: 8px; font-size: 0.9em; color: var(--text-secondary);">Local File</span></div><div class="card-info"><div class="card-title">${cardTitle}</div>${sizeText}<button class="install-btn" onclick="window.fontUI.selectAndAddCustomFont('${category}')" ${selectedItem ? 'style="background: var(--success); color: #000;"' : ''}>${buttonText}</button></div>`;
             grid.appendChild(customCard);
         }
 
@@ -372,13 +393,17 @@ class FontCraftUI {
             card.className = 'font-card';
             const imgUrl = itemData.preview || 'placeholder.png';
             const displayImg = imgUrl.startsWith('http') ? imgUrl : 'https://placehold.co/400x200?text=No+Preview';
-            card.innerHTML = `<div class="card-preview"><img src="${displayImg}" loading="lazy" alt="${folderName}"></div><div class="card-info"><div class="card-title">${folderName}</div><button class="install-btn" onclick="window.fontUI.openInstallModal('${category}', '${folderName}')">Select</button></div>`;
+
+            const totalBytes = (itemData.files || []).reduce((sum, f) => sum + (f.size_bytes || 0), 0);
+            const sizeLabel = totalBytes > 0 ? formatSize(totalBytes) : '';
+
+            card.innerHTML = `<div class="card-preview"><img src="${displayImg}" loading="lazy" alt="${folderName}"></div><div class="card-info"><div class="card-title">${folderName}</div>${sizeLabel ? `<div class="card-size">${sizeLabel}</div>` : ''}<button class="install-btn" onclick="window.fontUI.openInstallModal('${category}', '${folderName}')">Select</button></div>`;
             grid.appendChild(card);
         });
     }
 
     openInstallModal(category, folderName) {
-        if(this.queue[category] !== null) {
+        if (this.queue[category] !== null) {
             this.showToast(`Already selected a ${category}. Clear it first!`, 'warning');
             return;
         }
@@ -386,7 +411,7 @@ class FontCraftUI {
         const modal = document.getElementById('installModal');
         document.getElementById('modalTitle').innerText = folderName;
         const img = document.getElementById('modalPreview');
-        if(itemData.preview) {
+        if (itemData.preview) {
             img.src = itemData.preview;
             img.style.display = 'block';
         } else img.style.display = 'none';
@@ -411,10 +436,11 @@ class FontCraftUI {
         modal.classList.add('locked');
         closeBtn.classList.add('locked');
 
-        if(typeof ksu === 'undefined' && !STATE.ROOT_BIN) {
+        if (typeof ksu === 'undefined' && !STATE.ROOT_BIN) {
             this.showToast(`[Browser Mode] Added to queue: ${filename}`, 'info');
             this.queue[category] = { name: folderName, path: `/mock/${filename}`, filename: filename };
             this.updateBuildUI();
+            this.renderGrid(this.currentCategory);
             this.unlockModal(modal, closeBtn);
             return;
         }
@@ -448,7 +474,7 @@ class FontCraftUI {
             const pidOutput = await this.ksuExec(bgCmd);
             const pid = pidOutput.trim();
 
-            if(!pid) throw new Error("Wget failed to start");
+            if (!pid) throw new Error("Wget failed to start");
 
             await wait(2000);
             const checkImmediate = await this.ksuExec(`if [ -d "/proc/${pid}" ]; then echo "running"; else echo "stopped"; fi`);
@@ -465,23 +491,23 @@ class FontCraftUI {
                 try {
                     const sizeCmd = `sh -c "${STATE.BB} du -h '${destPath}' | awk '{print \\$1}'"`;
                     const size = await this.ksuExec(sizeCmd);
-                    if(size && size.trim() !== "" && !size.includes("No such")) btnElement.innerText = `DL: ${size.trim()}`;
+                    if (size && size.trim() !== "" && !size.includes("No such")) btnElement.innerText = `DL: ${size.trim()}`;
                     const checkRunning = await this.ksuExec(`if [ -d "/proc/${pid}" ]; then echo "running"; else echo "stopped"; fi`);
-                    if(checkRunning.includes("stopped")) {
+                    if (checkRunning.includes("stopped")) {
                         clearInterval(pollInterval);
                         this.finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, modal, closeBtn, expectedBytes);
                     }
-                } catch(err) {}
+                } catch (err) {}
             }, 1000);
 
         } catch (e) {
-            if(pollInterval) clearInterval(pollInterval);
+            if (pollInterval) clearInterval(pollInterval);
             this.showToast("Wget failed, trying fallback...", 'warning');
 
             try {
                 btnElement.innerText = "Streaming...";
                 await this.downloadViaBrowserBridge(url, destPath, (bytes) => {
-                    btnElement.innerText = `DL: ${(bytes/1024/1024).toFixed(2)} MB`;
+                    btnElement.innerText = `DL: ${(bytes / 1024 / 1024).toFixed(2)} MB`;
                 });
                 this.finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, modal, closeBtn, expectedBytes);
             } catch (err2) {
@@ -501,8 +527,8 @@ class FontCraftUI {
         const CHUNK_SIZE = 1024 * 64;
         let buffer = new Uint8Array(0);
 
-        while(true) {
-            const {done, value} = await reader.read();
+        while (true) {
+            const { done, value } = await reader.read();
             if (done) {
                 if (buffer.length > 0) {
                     const b64 = this.arrayBufferToBase64(buffer);
@@ -524,7 +550,7 @@ class FontCraftUI {
             }
 
             receivedLength += value.length;
-            if(progressCallback) progressCallback(receivedLength);
+            if (progressCallback) progressCallback(receivedLength);
         }
     }
 
@@ -541,7 +567,7 @@ class FontCraftUI {
     async finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, modal, closeBtn, expectedBytes) {
         try {
             const check = await this.ksuExec(`if [ -f "${destPath}" ]; then echo "exists"; fi`);
-            if(check.includes("exists")) {
+            if (check.includes("exists")) {
                 if (expectedBytes > 0) {
                     const localSizeCmd = `sh -c "${STATE.BB} wc -c '${destPath}' | awk '{print \\$1}'"`;
                     const localResult = await this.ksuExec(localSizeCmd);
@@ -549,7 +575,6 @@ class FontCraftUI {
 
                     if (localBytes !== expectedBytes) {
                         await this.ksuExec(`rm -f "${destPath}"`);
-
                         const expMB = (expectedBytes / 1048576).toFixed(2);
                         const gotMB = (localBytes / 1048576).toFixed(2);
                         throw new Error(`Size mismatch! Expected ${expMB} MB but got ${gotMB} MB. File is corrupted or incomplete.`);
@@ -561,6 +586,7 @@ class FontCraftUI {
                 this.queue[category] = { name: folderName, path: destPath, filename: filename };
                 this.showToast(`Verified: ${folderName}`, 'success');
                 this.updateBuildUI();
+                this.renderGrid(this.currentCategory);
                 setTimeout(() => this.unlockModal(modal, closeBtn), 500);
             } else throw new Error("Download failed or file empty");
         } catch (e) {
@@ -586,7 +612,7 @@ class FontCraftUI {
     handleClearClick() {
         const hasEmoji = this.queue.Emoji !== null;
         const hasFont = this.queue.Fonts !== null;
-        if(hasEmoji && hasFont) {
+        if (hasEmoji && hasFont) {
             document.getElementById('clearSelectionModal').classList.add('active');
             this.toggleBodyLock(true);
         } else if (hasEmoji) this.clearQueueItem('Emoji');
@@ -609,13 +635,14 @@ class FontCraftUI {
             this.queue[type] = null;
         }
         this.updateBuildUI();
+        this.renderGrid(this.currentCategory);
         this.closeClearModal();
     }
 
     async deleteFile(category) {
-        if(!this.queue[category]) return;
+        if (!this.queue[category]) return;
         const path = this.queue[category].path;
-        if((typeof ksu !== 'undefined' || STATE.ROOT_BIN) && !path.startsWith('/storage/emulated/0') && !path.startsWith('/mnt/media_rw/')) {
+        if ((typeof ksu !== 'undefined' || STATE.ROOT_BIN) && !path.startsWith('/storage/emulated/0') && !path.startsWith('/mnt/media_rw/')) {
             await this.ksuExec(`rm -f "${path}"`);
             this.showToast(`Cleared ${category}`, 'info');
         } else {
@@ -630,8 +657,9 @@ class FontCraftUI {
         const clearContainer = document.getElementById('clearContainer');
         const hasEmoji = this.queue.Emoji !== null;
         const hasFont = this.queue.Fonts !== null;
-        if(hasEmoji) {
-            emojiStatus.innerText = `Emoji: ${this.queue.Emoji.name}`;
+
+        if (hasEmoji) {
+            emojiStatus.innerText = `Emoji: ${this.queue.Emoji.filename}`;
             emojiStatus.classList.add('active');
             emojiStatus.classList.remove('empty');
         } else {
@@ -639,8 +667,9 @@ class FontCraftUI {
             emojiStatus.classList.remove('active');
             emojiStatus.classList.add('empty');
         }
-        if(hasFont) {
-            fontStatus.innerText = `Font: ${this.queue.Fonts.name}`;
+
+        if (hasFont) {
+            fontStatus.innerText = `Font: ${this.queue.Fonts.filename}`;
             fontStatus.classList.add('active');
             fontStatus.classList.remove('empty');
         } else {
@@ -648,14 +677,20 @@ class FontCraftUI {
             fontStatus.classList.remove('active');
             fontStatus.classList.add('empty');
         }
-        if(hasEmoji || hasFont) clearContainer.innerHTML = `<button class="clear-btn" onclick="window.fontUI.handleClearClick()" title="Clear Selection">${StylizeTextIcons.getClearIcon()}</button>`;
-        else clearContainer.innerHTML = '';
+
+        if (hasEmoji || hasFont) {
+            clearContainer.innerHTML = `<button class="clear-btn" onclick="window.fontUI.handleClearClick()" title="Clear Selection">${StylizeTextIcons.getClearIcon()}</button>`;
+        } else {
+            clearContainer.innerHTML = '';
+        }
+
         const hasItems = hasEmoji || hasFont;
         flashBtn.disabled = !hasItems;
-        if(hasItems) {
+
+        if (hasItems) {
             flashBtn.classList.add('ready');
             const count = (hasEmoji ? 1 : 0) + (hasFont ? 1 : 0);
-            flashBtn.innerText = `Flash Module (${count} items)`;
+            flashBtn.innerText = `Flash Module (${count} item${count > 1 ? 's' : ''})`;
         } else {
             flashBtn.classList.remove('ready');
             flashBtn.innerText = "Select items to Flash";
@@ -680,19 +715,44 @@ class FontCraftUI {
         this.toggleBodyLock(false);
         this.queue = { Emoji: null, Fonts: null };
         this.updateBuildUI();
+        this.renderGrid(this.currentCategory);
         this.cleanup();
     }
 
     async selectAndAddCustomFont(category) {
+        if (this.queue[category] !== null) {
+            this.showToast(`Already selected a ${category}. Clear it first!`, 'warning');
+            return;
+        }
+
         try {
             this.pickerMode = 'font';
             this.baseBrowsePath = "/storage/emulated/0";
             const { path, name } = await this.openCustomFilePicker(category);
-            this.queue[category] = { name: `${name}`, path: path, filename: name };
+
+            let fileSize = '';
+            if (typeof ksu !== 'undefined' || STATE.ROOT_BIN) {
+                try {
+                    const sizeCmd = `sh -c "${STATE.BB} wc -c '${path}' | awk '{print \\$1}'"`;
+                    const sizeOutput = await this.ksuExec(sizeCmd);
+                    const bytes = parseInt(sizeOutput.trim());
+                    if (bytes > 0) {
+                        fileSize = formatSize(bytes);
+                    }
+                } catch (e) {}
+            }
+
+            this.queue[category] = {
+                name: name,
+                path: path,
+                filename: name,
+                size: fileSize
+            };
             this.showToast(`Added ${name} to Queue`, 'success');
             this.updateBuildUI();
+            this.renderGrid(this.currentCategory);
         } catch (error) {
-            if(error.message !== "File selection cancelled.") this.showToast(error.message, 'info');
+            if (error.message !== "File selection cancelled.") this.showToast(error.message, 'info');
         }
     }
 
@@ -720,7 +780,7 @@ class FontCraftUI {
             const response = await fetch(url);
             const jsonStr = await response.text();
             let data;
-            try { data = JSON.parse(jsonStr); } catch(e) { throw new Error("Invalid JSON structure"); }
+            try { data = JSON.parse(jsonStr); } catch (e) { throw new Error("Invalid JSON structure"); }
             if (!data.Fonts && !data.Emoji) throw new Error("JSON missing Fonts or Emoji keys");
             this.activeJsonUrl = url;
             this.activeRepoName = "Custom Source";
@@ -748,7 +808,7 @@ class FontCraftUI {
         this.currentFilePath = "/data/adb";
         if (targetVal && targetVal.startsWith("/data/adb") && targetVal.includes("/")) {
             let dir = targetVal.substring(0, targetVal.lastIndexOf('/'));
-            if(dir.startsWith("/data/adb")) this.currentFilePath = dir;
+            if (dir.startsWith("/data/adb")) this.currentFilePath = dir;
         }
         this.openCustomFilePicker(null);
     }
@@ -805,7 +865,7 @@ class FontCraftUI {
     }
 
     async openCustomFilePicker(category) {
-        if(this.pickerMode === 'font' && this.queue[category] !== null) {
+        if (this.pickerMode === 'font' && this.queue[category] !== null) {
             const msg = `Already selected a ${category}. Clear it first!`;
             this.showToast(msg, 'warning');
             return Promise.reject(new Error(msg));
@@ -813,7 +873,7 @@ class FontCraftUI {
         const modal = document.getElementById('fileSelectorModal');
         modal.classList.add('active');
         this.toggleBodyLock(true);
-        if(this.pickerMode === 'font') {
+        if (this.pickerMode === 'font') {
             this.currentFilePath = "/storage/emulated/0";
         }
         this.updateFileBrowserPath();
@@ -872,9 +932,9 @@ class FontCraftUI {
         rootSegment.innerText = rootName;
         rootSegment.style.fontWeight = "bold";
         rootSegment.onclick = () => {
-             this.currentFilePath = CONFIG.STORAGE_ROOT;
-             this.updateFileBrowserPath();
-             this.listFilesInPath(CONFIG.STORAGE_ROOT);
+            this.currentFilePath = CONFIG.STORAGE_ROOT;
+            this.updateFileBrowserPath();
+            this.listFilesInPath(CONFIG.STORAGE_ROOT);
         };
         pathEl.appendChild(rootSegment);
         if (this.currentFilePath.length > displayBase.length) {
@@ -1001,7 +1061,7 @@ class FontCraftUI {
                 this.closeCustomFilePicker("Binary selected");
                 this.showToast(`Updated ${this.binarySelectionType}`, 'success');
             } else {
-                if (this.filePickerPromise.resolve) this.filePickerPromise.resolve({path: filePath, name: name});
+                if (this.filePickerPromise.resolve) this.filePickerPromise.resolve({ path: filePath, name: name });
                 this.closeCustomFilePicker("File selected");
             }
         }
@@ -1011,10 +1071,10 @@ class FontCraftUI {
         const segment = e.target.closest(".path-segment");
         if (!segment) return;
         if (segment.innerText === "Storage Devices") {
-             this.currentFilePath = CONFIG.STORAGE_ROOT;
-             this.updateFileBrowserPath();
-             await this.listFilesInPath(CONFIG.STORAGE_ROOT);
-             return;
+            this.currentFilePath = CONFIG.STORAGE_ROOT;
+            this.updateFileBrowserPath();
+            await this.listFilesInPath(CONFIG.STORAGE_ROOT);
+            return;
         }
         if (segment.dataset.path) {
             this.currentFilePath = segment.dataset.path;

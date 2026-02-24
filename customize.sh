@@ -181,13 +181,13 @@ select_mode() {
             mkdir -p /data/adb/modules/StylizeText/binaries
             cp -r $MODPATH/binaries/* /data/adb/modules/StylizeText/binaries/
             chmod -R 755 /data/adb/modules/StylizeText/binaries/
-
+            rm -rf /cache/Template/
+            mv "$MODPATH/Template" /cache/ && [ -d "/data/adb/metamodule/mnt/StylizeText/system" ] && rm -rf "/data/adb/metamodule/mnt/StylizeText/system"
             if start_server; then
                 ui_print "   >[✅ WebUI Listening on http://127.0.0.1:$LAUNCH_PORT]<"
                 ui_print "   >[🌐 Opening browser...]<"
                 su 2000 -c "cmd activity start -a android.intent.action.VIEW -d 'http://127.0.0.1:$LAUNCH_PORT'" >/dev/null 2>&1
                 ui_print "   >[Done! Please configure your fonts in the browser.]<"
-                mv "$MODPATH/Template" /cache/ && [ -d "/data/adb/metamodule/mnt/StylizeText/system" ] && rm -rf "/data/adb/metamodule/mnt/StylizeText/system"
             else
                 ui_print "   >[❌ WebUI failed to start! Please use CLI Mode.]<"
                 exit 1
@@ -198,6 +198,7 @@ select_mode() {
             extract_info "$JSON_PATH" Emoji
             selection_list="$emoji_list"
             selection_type="emoji"
+            rm -rf /cache/Template/
             mv "$MODPATH/Template" /cache/ && [ -d "/data/adb/metamodule/mnt/StylizeText/system" ] && rm -rf "/data/adb/metamodule/mnt/StylizeText/system"
             select_item
             updesc "📥 Applied $emoji font injection" "$MODPATH/module.prop"
@@ -207,18 +208,21 @@ select_mode() {
             extract_info "$JSON_PATH" Fonts
             selection_list="$font_list"
             selection_type="font"
+            rm -rf /cache/Template/
             mv "$MODPATH/Template" /cache/ && [ -d "/data/adb/metamodule/mnt/StylizeText/system" ] && rm -rf "/data/adb/metamodule/mnt/StylizeText/system"
             select_item
             updesc "📥 Applied $font font injection" "$MODPATH/module.prop"
             ;;
         4)
             ui_print "   >[Selected Mode: CLI - Both]<"
+            rm -rf /cache/Template/
             mv "$MODPATH/Template" /cache/ && [ -d "/data/adb/metamodule/mnt/StylizeText/system" ] && rm -rf "/data/adb/metamodule/mnt/StylizeText/system"
             ui_print "   >[Select A Font]<"
             extract_info "$JSON_PATH" Fonts
             selection_list="$font_list"
             selection_type="font"
             select_item
+
             ui_print "###########################"
             ui_print "   >[Selected Mode: CLI - Both]<"
             ui_print "   >[Select An Emoji]<"
@@ -226,6 +230,7 @@ select_mode() {
             selection_list="$emoji_list"
             selection_type="emoji"
             select_item
+
             updesc "📥 Injected $font font and $emoji emoji support" "$MODPATH/module.prop"
             ;;
         5)
