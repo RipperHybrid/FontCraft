@@ -34,118 +34,89 @@
 
 ## 📖 About
 
-<details>
-<summary><strong>Click to read: Project Integrity, Compatibility & Important Notices</strong></summary>
-<br>
-
-> **⚠️ Notice: Resilience & Backup Plans**
-> Following a recent temporary suspension of this account, I have updated the infrastructure to prevent future disruptions:
->
-> 1.  **Updates:** The update check has moved to **Cloudflare**. Your module will check for updates reliably, regardless of GitHub's status.
-> 2.  **Mirrors:** This repository is fully synchronized with [**GitLab**](https://gitlab.com/RipperHybrid/FontCraft).
-
-### 🛡️ Trust & Verification
-I believe in full transparency for root modules. **Nothing in this project is obfuscated.** All code is public, auditable, and free to inspect.
-
-* **View the Source:** You can download the core template logic to see exactly how the module functions internally:
-    * 📂 **Download Template Source:** [https://fontcraft.pages.dev/template.zip](https://fontcraft.pages.dev/template.zip)
-* **Mirror Configuration:** Want to see where the fonts are fetched from? Check the JSON configuration:
-    * 🔗 **Mirror List:** [https://fontcraft.pages.dev/mirrors.json](https://fontcraft.pages.dev/mirrors.json)
-
-> **⚠️ Compatibility Note:** The Full WebUI is available on **KernelSU**, **APatch**, and any **KSU Fork** that supports the module WebUI standard. Magisk users will use the classic Volume Key interface or simply re-flash the module to change settings.
-
-> **🧪 Help Me Expand Compatibility**
-> - If your root solution (or specific fork) is not listed or supported, **please open an issue or reach out!** I am looking for testers to help verify and add compatibility for other root environments.
-
-</details>
-
-**FontCraft** now features a fully interactive **WebUI** for KernelSU and APatch users. Browse, download, and flash fonts with a modern, touch-friendly interface designed for seamless customization.
-
----
+**FontCraft** is a font/emoji module with a fully interactive **WebUI**. Browse, download, and flash fonts with a modern, touch-friendly interface.
 
 ### ✨ Key Features
-* **Interactive Web Interface:** Browse the remote library visually with preview images (KSU, APatch & Forks).
-* **🔌 Offline Support (New):** The installation template is now stored locally. You can install your own local `.ttf` files without needing an active internet connection.
-* **Custom Repositories:** Support for adding user-defined JSON sources to expand your font library.
-* **Hybrid Queue System:** Select a **Font** and an **Emoji** pack simultaneously and flash them in one go.
-* **Integrated File Selector:** Have your own `.ttf` file? Use the built-in storage navigator to browse and select local font files directly within the interface.
-* **Live Terminal Output:** Watch the installation process in real-time via the embedded terminal window.
-* **GMS Cleaner:** Built-in action to disable Google Play Services font syncing if it overrides your custom emojis.
-* **Theming Engine:** Choose your vibe with **Dark**, **Light**, and **Retro (Amber)** modes.
-* **Universal Compatibility:**
-    * ✅ **Magisk** (CLI Mode + WebUI Mode)
-    * ✅ **KernelSU** (CLI Mode + WebUI Mode)
-    * ✅ **APatch** (CLI Mode + WebUI Mode)
-    * ✅ **Android 15 (Tested on Nothing OS)**
-
----
+- **WebUI Interface:** Visual browser with preview images
+- **File Size Display:** See sizes in download modal (KB/MB/GB)
+- **Retro Default Theme:** Warm amber/orange with black backgrounds
+- **Offline Support:** Install local `.ttf` files without internet
+- **Custom Repositories:** Add your own JSON sources
+- **Hybrid Queue:** Select Font + Emoji simultaneously
+- **File Selector:** Browse and select local files
+- **Live Terminal:** Real-time installation output
+- **GMS Cleaner:** Disable Google font overriding
+- **Universal:** Magisk | KernelSU | APatch
 
 ## 🎨 Gallery & Asset Showcase
 
 Want to see exactly what's available before you install? We maintain an automatically updated visual catalog of every font and emoji pack currently in the remote library.
 
-> **[👉 Click here to view the Full Font & Emoji Preview](Preview.md)**
+> **[👉 Full Font & Emoji Preview](Preview.md)**
 
 ---
 
 ## 🚀 Roadmap (To-Do)
-I am actively working on expanding FontCraft. Here is what is coming next:
 
-* [x] ~~**Custom Repository Support:** A feature in the WebUI to allow users to input their own source URLs.~~
-* [x] ~~**Offline Installation Support:** Local template caching for data-free flashing.~~
-* [x] ~~**Magisk WebUI Support:** Porting the full WebUI experience to Magisk users.~~
-    * *Note:* This is technically possible but requires significant architectural changes. It is a long-term goal.
+* [x] ~~**Custom Repository Support**~~
+* [x] ~~**Offline Installation Support**~~
+* [x] ~~**Magisk WebUI Support**~~
+* [ ] **More Font Sources**
 
-## 📥 How WebUI Works (KSU & APatch)
-1.  **Open the Module:** Launch the FontCraft WebUI from the "Modules" tab in your manager (KernelSU or APatch).
-2.  **Browse Library:** Switch between the **Emoji** and **Fonts** tabs to see available options from the cloud repository (Requires Internet).
-3.  **Custom Repositories:** Input your own source URLs via the settings to load external collections.
-4.  **Custom Import (Offline Capable):** Use the "Custom Font" card to browse your internal storage and select any `.ttf` file.
-    * *Since v5.8, this uses a local installation template, so no data connection is required.*
-5.  **Queue & Flash:**
-    * Add your desired font/emoji to the queue.
-    * Hit **"Flash Module"**.
-    * The built-in terminal will generate the installation script, build the zip, and install it automatically.
-6.  **Reboot:** Restart your device to see the changes.
+## 📥 How WebUI Works
+1.  **Open Module:** Launch from "Modules" tab in your manager
+2.  **Browse Library:** Switch between **Emoji** and **Fonts** tabs
+3.  **Custom Import:** Use "Custom Font" card for local `.ttf` files
+4.  **Queue & Flash:** Select items and hit **"Flash Module"**
+5.  **Reboot:** Restart to see changes
 
 ## 🛠 Requirements
-- Rooted device.
-- **KernelSU** (or any KSU fork with WebUI support).
-- **APatch** (WebUI Supported).
-- **Magisk** (Supported via standard Volume Key installation).
-- **Internet Connection:**
-    * Required for browsing the online library.
-    * **NOT required** for installing local `.ttf` files (Offline Mode).
+- Rooted device
+- KernelSU | APatch | Magisk (or any compatible fork)
+- Internet for online browsing (offline for local files)
 
 ## 📌 Installation
-1. Download the latest release zip.
-2. Install via your root manager.
-3. **For KSU / APatch Users:** You can open the UI immediately after flashing (no reboot needed to browse, only to apply).
-4. **For Magisk Users:** Follow the volume key prompts during installation. To change fonts later, simply flash the zip again.
+1. Download latest release zip
+2. Install via root manager
+3. Open WebUI from modules tab
+4. Select and flash your fonts
 
 ## ❓ FAQ
 
-**Q: How do I restore the default font?**
-A: Simply uninstall the module from your root manager and reboot.
+**Q: How do I restore default font?**
+A: Uninstall the module and reboot.
 
 **Q: My emojis aren't showing up (Android 12+)?**
 A: There are two common reasons for this. Try these steps:
 1.  **Zygisk Next Users:** If you are using Zygisk Next 1.3.0+, you may need the `FontLoader` module fix. [Download Here](https://t.me/real5ec1cff/265).
 2.  **Google Override:** Google Play Services often forces its own fonts. Go to the Module Action button and run it. This will disable the GMS font provider and clear the cache.
 
-**Q: Can I use my own font files offline?**
-A: Yes! As of v5.8, the installation template is stored locally. You can use the "Custom Font" card to flash files from your storage without any internet connection.
-
-**Q: Does this work on KSU forks (like KSU-Next)?**
-A: Yes, as long as the fork supports the WebUI standard, the interface will work perfectly.
+**Q: Can I use my own files offline?**
+A: Yes! Use the "Custom Font" card.
 
 ## 🔗 Credits
 - **jq Binary** – [jq](https://jqlang.org)
 - **zip Binary** – [zip](https://infozip.sourceforge.net)
 - **Cloudflare** – [Pages](https://pages.cloudflare.com/) (Web Page Hosting & Update System)
-> - **Note**: All fonts and emojis belong to their respective creators. This repository acts as a distribution point for legally shareable assets. If you're a copyright holder and wish to have your content removed, please contact the maintainer.
 
-> **Disclaimer:** FontCraft Pro modifies system files (systemlessly). While safe, always ensure you have a backup of your ROM or a way to recover from bootloops before flashing custom modules.
+> **Note:** All fonts and emojis belong to their respective creators. This repository acts as a distribution point for legally shareable assets. If you're a copyright holder and wish to have your content removed, please contact the maintainer.
+
+> **Disclaimer:** FontCraft modifies system files (systemlessly). Always ensure you have a backup before flashing custom modules.
+
+---
+
+## 🔄 Backup Plans & Resilience
+
+<details>
+<summary><strong>Infrastructure Redundancy</strong></summary>
+<br>
+
+Following a recent temporary suspension of this account, I have updated the infrastructure to prevent future disruptions:
+
+1.  **Updates:** The update check has moved to **Cloudflare**. Your module will check for updates reliably, regardless of GitHub's status.
+2.  **Mirrors:** This repository is fully synchronized with [**GitLab**](https://gitlab.com/RipperHybrid/FontCraft).
+
+</details>
 
 ---
 
