@@ -225,17 +225,13 @@ jobs:
           COMMIT_BODY=$(git log -1 --pretty=%b)
 
           if [ -n "$COMMIT_BODY" ]; then
-            RAW_CAPTION="$COMMIT_SUBJECT
-
-$COMMIT_BODY"
+            RAW_CAPTION=$(printf '%s\n\n%s' "$COMMIT_SUBJECT" "$COMMIT_BODY")
           else
             RAW_CAPTION="$COMMIT_SUBJECT"
           fi
 
           if [ ${#RAW_CAPTION} -ge 1024 ]; then
-            RAW_CAPTION="${RAW_CAPTION:0:950}
-
-... (truncated due to Telegram limit)"
+            RAW_CAPTION=$(printf '%s\n\n%s' "${RAW_CAPTION:0:950}" "... (truncated due to Telegram limit)")
           fi
 
           printf '%s' "$RAW_CAPTION" > /tmp/tg_caption.txt
