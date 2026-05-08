@@ -35,14 +35,34 @@ export async function openCustomFilePicker(category) {
         showToast(msg, 'warning');
         return Promise.reject(new Error(msg));
     }
+
     const modal = document.getElementById('fileSelectorModal');
+    const listEl = document.getElementById('file-selector-list');
+
+    listEl.innerHTML = `<div class="loading-files">Initializing...</div>`;
+
+    if(this.pickerMode === 'font' || this.pickerMode === 'binary') {
+        const volumes = await this.detectStorageVolumes();
+        this._cachedVolumes = volumes;
+
+        if (this.pickerMode === 'font') {
+            if (volumes.length > 1) {
+                this.baseBrowsePath = CONFIG.STORAGE_ROOT;
+                this.currentFilePath = CONFIG.STORAGE_ROOT;
+            } else {
+                this.baseBrowsePath = "/storage/emulated/0";
+                this.currentFilePath = "/storage/emulated/0";
+            }
+        }
+    }
+
+    this.updateFileBrowserPath();
+
     modal.classList.add('active');
     this.toggleBodyLock(true);
-    if(this.pickerMode === 'font') {
-        this.currentFilePath = "/storage/emulated/0";
-    }
-    this.updateFileBrowserPath();
+
     await this.listFilesInPath(this.currentFilePath);
+
     document.getElementById('file-selector-list').onclick = (e) => this.handleFileBrowserClick(e);
     document.getElementById('file-selector-path').onclick = (e) => this.handleFilePathClick(e);
     document.getElementById('file-selector-back').onclick = () => this.handleFileBrowserBack();
@@ -97,9 +117,15 @@ export function updateFileBrowserPath() {
     rootSegment.innerText = rootName;
     rootSegment.style.fontWeight = "bold";
     rootSegment.onclick = () => {
-            this.currentFilePath = CONFIG.STORAGE_ROOT;
-            this.updateFileBrowserPath();
-            this.listFilesInPath(CONFIG.STORAGE_ROOT);
+            if(this.baseBrowsePath === CONFIG.STORAGE_ROOT) {
+                this.currentFilePath = CONFIG.STORAGE_ROOT;
+                this.updateFileBrowserPath();
+                this.listFilesInPath(CONFIG.STORAGE_ROOT);
+            } else {
+                this.currentFilePath = "/storage/emulated/0";
+                this.updateFileBrowserPath();
+                this.listFilesInPath("/storage/emulated/0");
+            }
     };
     pathEl.appendChild(rootSegment);
     if (this.currentFilePath.length > displayBase.length) {
@@ -142,7 +168,14 @@ export async function listFilesInPath(path) {
     const listEl = document.getElementById('file-selector-list');
     listEl.innerHTML = `<div class="loading-files">Loading...</div>`;
     if (path === CONFIG.STORAGE_ROOT) {
-        const volumes = await this.detectStorageVolumes();
+        let volumes;
+        if (this._cachedVolumes) {
+            volumes = this._cachedVolumes;
+            this._cachedVolumes = null;
+        } else {
+            volumes = await this.detectStorageVolumes();
+        }
+
         listEl.innerHTML = "";
         if (volumes.length === 0) {
             listEl.innerHTML = `<div class="error-files">No storage found.</div>`;
@@ -168,7 +201,9 @@ export async function listFilesInPath(path) {
         const isVolumeRoot = (path === "/storage/emulated/0" || (path.startsWith("/mnt/media_rw/") && path.split('/').length === 4));
         if (path !== "/data/adb") {
             const upEl = this.createFileItemElement("..", "dir", delay);
-            if (isVolumeRoot && this.pickerMode !== 'binary') upEl.dataset.target = CONFIG.STORAGE_ROOT;
+            if (isVolumeRoot && this.pickerMode !== 'binary' && this.baseBrowsePath === CONFIG.STORAGE_ROOT) {
+                upEl.dataset.target = CONFIG.STORAGE_ROOT;
+            }
             listEl.appendChild(upEl);
             delay += 0.03;
         }
@@ -249,12 +284,19 @@ export async function handleFileBrowserBack() {
         return;
     }
     const isVolumeRoot = (this.currentFilePath === "/storage/emulated/0" || (this.currentFilePath.startsWith("/mnt/media_rw/") && this.currentFilePath.split('/').length === 4));
+
     if (isVolumeRoot && this.pickerMode !== 'binary') {
-        this.currentFilePath = CONFIG.STORAGE_ROOT;
-        this.updateFileBrowserPath();
-        await this.listFilesInPath(CONFIG.STORAGE_ROOT);
-        return;
+        if (this.baseBrowsePath === CONFIG.STORAGE_ROOT) {
+            this.currentFilePath = CONFIG.STORAGE_ROOT;
+            this.updateFileBrowserPath();
+            await this.listFilesInPath(CONFIG.STORAGE_ROOT);
+            return;
+        } else {
+            this.closeCustomFilePicker();
+            return;
+        }
     }
+
     let limit = (this.pickerMode === 'binary') ? "/data/adb" : "/mnt";
     if (this.currentFilePath !== limit && this.currentFilePath.length > limit.length) {
         let newPath = this.currentFilePath.substring(0, this.currentFilePath.lastIndexOf('/'));
