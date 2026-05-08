@@ -28,93 +28,94 @@
   </a>
 </div>
 
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Orbitron&weight=500&pause=700&color=41F791&center=true&vCenter=true&width=935&height=70&lines=Now+featuring+a+full+WebUI!;Offline+Support+Added!;Native+KSU+and+APatch+Support.)](https://git.io/typing-svg)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Orbitron&weight=500&pause=700&color=41F791&center=true&vCenter=true&width=935&height=70&lines=Now+featuring+a+Vite-powered+WebUI!;Dynamic+XML+Injection+Added!;Native+KSU,+Magisk,+and+APatch+Support.)](https://git.io/typing-svg)
 
 ---
 
 ## 📖 About
 
-**FontCraft** is a font/emoji module with a fully interactive **WebUI**. Browse, download, and flash fonts with a modern, touch-friendly interface.
+**FontCraft** is an advanced font and emoji engine for Android. Powered by a fully interactive localhost WebUI, it allows you to dynamically browse, download, and seamlessly inject `.ttf` files systemlessly without ever leaving your root manager.
 
 ### ✨ Key Features
-- **WebUI Interface:** Visual browser with preview images
-- **File Size Display:** See sizes in download modal (KB/MB/GB)
-- **Retro Default Theme:** Warm amber/orange with black backgrounds
-- **Offline Support:** Install local `.ttf` files without internet
-- **Custom Repositories:** Add your own JSON sources
-- **Hybrid Queue:** Select Font + Emoji simultaneously
-- **File Selector:** Browse and select local files
-- **Live Terminal:** Real-time installation output
-- **GMS Cleaner:** Disable Google font overriding
-- **Universal:** Magisk | KernelSU | APatch
+- **Vite-Powered WebUI:** Ultra-fast, modular frontend featuring a retro/glassmorphism design and real-time terminal output.
+- **Dynamic XML Patching:** Automatically injects targets into `fonts.xml` and `font_fallback.xml` for maximum system-wide compatibility.
+- **Hybrid Build Queue:** Select and flash both a Font and an Emoji pack simultaneously.
+- **Custom Mirrors & Repositories:** Auto-detect the fastest download mirror, or input your own custom JSON library source.
+- **True Offline Support:** Browse your internal storage and flash local `.ttf` files without an active internet connection.
+- **GMS Font Cleaner:** Built-in utility to wipe out Google Play Services font overrides that break custom emojis.
+- **Universal Root Architecture:** Native execution compatibility across Magisk, KernelSU, and APatch.
 
 ## 🎨 Gallery & Asset Showcase
 
 Want to see exactly what's available before you install? We maintain an automatically updated visual catalog of every font and emoji pack currently in the remote library.
 
-> **[👉 Full Font & Emoji Preview](Preview.md)**
+> **[👉 View Full Font & Emoji Preview Gallery](Preview.md)**
 
 ---
 
-## 🚀 Roadmap (To-Do)
+## 🚀 Roadmap
 
-* [x] ~~**Custom Repository Support**~~
-* [x] ~~**Offline Installation Support**~~
-* [x] ~~**Magisk WebUI Support**~~
-* [ ] **More Font Sources**
+* [x] **Custom Repository Support**
+* [x] **Offline Installation Support**
+* [x] **Magisk & APatch WebUI Support**
+* [ ] **Expand Core Font Sources**
 
-## 📥 How WebUI Works
-1.  **Open Module:** Launch from "Modules" tab in your manager
-2.  **Browse Library:** Switch between **Emoji** and **Fonts** tabs
-3.  **Custom Import:** Use "Custom Font" card for local `.ttf` files
-4.  **Queue & Flash:** Select items and hit **"Flash Module"**
-5.  **Reboot:** Restart to see changes
+## 📥 Usage Guide
+
+**1. Initial Setup (Flashing)**
+Flash the module zip in your root manager (Magisk, KernelSU, or APatch). The installer will trigger a volume-key menu. Use your volume buttons (or tap the screen) to select your preferred mode. **WebUI Mode** is highly recommended.
+
+**2. The WebUI Flow**
+If you selected the WebUI, a local server will start and open your browser automatically.
+- Browse the library or select a local `.ttf` from your storage.
+- Add your chosen Font and/or Emoji to the build queue.
+- Tap **Flash Module** and monitor the live terminal.
+- Reboot via the floating action button when finished.
+
+**3. Post-Install Management (Action Script)**
+Need to change fonts later, open the WebUI again, or run the GMS cache cleaner?
+- **Magisk & KernelSU:** Tap the **Action** button on the FontCraft module card in your root manager app to launch the interactive script menu.
+- **APatch (or unsupported managers):** Simply re-flash the module zip to trigger the initial setup menu again without losing your previous configuration.
 
 ## 🛠 Requirements
-- Rooted device
-- KernelSU | APatch | Magisk (or any compatible fork)
-- Internet for online browsing (offline for local files)
-
-## 📌 Installation
-1. Download latest release zip
-2. Install via root manager
-3. Open WebUI from modules tab
-4. Select and flash your fonts
+- A rooted Android device.
+- Magisk, KernelSU, or APatch installed.
+- Internet connection (for online library browsing). *Local file flashing works fully offline.*
 
 ## ❓ FAQ
 
-**Q: How do I restore default font?**
-A: Uninstall the module and reboot.
+**Q: How do I restore my default system font?**
+A: Simply disable or uninstall the FontCraft module in your root manager and reboot your device.
 
 **Q: My emojis aren't showing up (Android 12+)?**
-A: There are two common reasons for this. Try these steps:
-1.  **Zygisk Next Users:** If you are using Zygisk Next 1.3.0+, you may need the `FontLoader` module fix. [Download Here](https://t.me/real5ec1cff/265).
-2.  **Google Override:** Google Play Services often forces its own fonts. Go to the Module Action button and run it. This will disable the GMS font provider and clear the cache.
+A: There are two common reasons for this. Try these fixes:
+1.  **Google Override:** Google Play Services often forces its own fonts. Execute the FontCraft Action script in your root manager and run the **"Clean GMS Fonts"** tool to purge the cache.
+2.  **Zygisk Next Users:** If you are using Zygisk Next 1.3.0+, you may need the `FontLoader` module fix. [Download Here](https://t.me/real5ec1cff/265).
 
 **Q: Can I use my own files offline?**
-A: Yes! Use the "Custom Font" card.
+A: Absolutely. Tap the "Storage" button on the Custom Font/Emoji card to open the file selector and navigate to your local `.ttf` files.
 
 ## 🔗 Credits
-- **jq Binary** – [jq](https://jqlang.org)
-- **zip Binary** – [zip](https://infozip.sourceforge.net)
+- **jq** – [jqlang.org](https://jqlang.org)
+- **zip** – [infozip.sourceforge.net](https://infozip.sourceforge.net)
 - **Cloudflare** – [Pages](https://pages.cloudflare.com/) (Web Page Hosting & Update System)
 
-> **Note:** All fonts and emojis belong to their respective creators. This repository acts as a distribution point for legally shareable assets. If you're a copyright holder and wish to have your content removed, please contact the maintainer.
+> **Note:** All fonts and emojis belong to their respective creators. This repository acts as a distribution point for legally shareable assets. If you are a copyright holder and wish to have your content removed, please contact the maintainer.
 
-> **Disclaimer:** FontCraft modifies system files (systemlessly). Always ensure you have a backup before flashing custom modules.
+> **Disclaimer:** FontCraft modifies system files systemlessly. Always ensure you have a fallback method to disable modules in case of a bootloop.
 
 ---
 
-## 🔄 Backup Plans & Resilience
+## 🔄 Resilience & Backup Infrastructure
 
 <details>
-<summary><strong>Infrastructure Redundancy</strong></summary>
+<summary><strong>Infrastructure Redundancy details</strong></summary>
 <br>
 
-Following a recent temporary suspension of this account, I have updated the infrastructure to prevent future disruptions:
+Following a recent temporary suspension of this account, the infrastructure has been updated to prevent future disruptions:
 
-1.  **Updates:** The update check has moved to **Cloudflare**. Your module will check for updates reliably, regardless of GitHub's status.
-2.  **Mirrors:** This repository is fully synchronized with [**GitLab**](https://gitlab.com/RipperHybrid/FontCraft).
+1.  **Updates:** The update verification system has been migrated to **Cloudflare**. Your module will check for updates reliably, regardless of GitHub's server status.
+2.  **Mirrors:** This repository is fully synchronized and backed up via [**GitLab**](https://gitlab.com/RipperHybrid/FontCraft).
 
 </details>
 

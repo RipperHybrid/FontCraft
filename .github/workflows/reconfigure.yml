@@ -22,6 +22,9 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      - name: Remove Old Files
+        run: rm -f fonts.json Preview.md
+
       - name: Set Up Python
         uses: actions/setup-python@v5
         with:
@@ -53,58 +56,64 @@ jobs:
 
           for category in sorted(categories):
               category_path = os.path.join(repo_dir, category)
-
               if not os.path.isdir(category_path):
                   continue
-
               data[category] = {}
-
               for folder in sorted(os.listdir(category_path), key=str.lower):
                   folder_path = os.path.join(category_path, folder)
-
                   if os.path.isdir(folder_path):
-
                       scan_fonts = [
                           f for f in sorted(os.listdir(folder_path), key=str.lower)
                           if os.path.isfile(os.path.join(folder_path, f)) and f.endswith(tuple(allowed_extensions))
                       ]
-
                       files_list = []
                       for f in scan_fonts:
                           file_path = os.path.join(folder_path, f)
                           file_size = os.path.getsize(file_path)
                           raw_url = f"{base_url}/{quote(f'{category}/{folder}/{f}')}"
-
                           files_list.append({
                               "filename": f,
                               "download_url": raw_url,
                               "size_bytes": file_size
                           })
-
-                      scan_imgs = [
+                      font_bases = {os.path.splitext(f)[0] for f in scan_fonts}
+                      font_bases_lower = {name.lower(): name for name in font_bases}
+                      raw_imgs = [
                           f for f in sorted(os.listdir(folder_path), key=str.lower)
                           if os.path.isfile(os.path.join(folder_path, f)) and f.endswith(".png")
                       ]
-
+                      scan_imgs = []
+                      for img in raw_imgs:
+                          img_base = os.path.splitext(img)[0]
+                          if img_base in font_bases:
+                              scan_imgs.append(img)
+                          elif img_base.lower() in font_bases_lower:
+                              exact_expected_img = font_bases_lower[img_base.lower()] + ".png"
+                              if exact_expected_img in raw_imgs:
+                                  try:
+                                      os.remove(os.path.join(folder_path, img))
+                                  except Exception:
+                                      pass
+                                  continue
+                              else:
+                                  scan_imgs.append(img)
+                          else:
+                              scan_imgs.append(img)
                       preview_url = None
                       if scan_imgs:
                           preview_url = f"{base_url}/{quote(f'{category}/{folder}/{scan_imgs[0]}')}"
-
                           md_content += f"### {folder}\n"
                           for img in scan_imgs:
                               img_url = f"{base_url}/{quote(f'{category}/{folder}/{img}')}"
                               md_content += f'- <img src="{img_url}" width="200px" alt="{folder}">\n'
                           md_content += "\n"
-
                       if files_list:
                           data[category][folder] = {
                               "preview": preview_url,
                               "files": files_list
                           }
-
           with open(output_json, "w") as json_file:
               json.dump(data, json_file, indent=2)
-
           with open(output_md, "w") as md_file:
               md_file.write(md_content)
 
@@ -112,12 +121,13 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
           git add fonts.json Preview.md
-
-          git commit -m "Auto-update Font metadata & Preview [skip ci]" || echo "No changes to commit"
-
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }} || echo "No changes to push"
+          if git diff --staged --quiet; then
+            echo "No changes detected. Skipping commit."
+          else
+            git commit -m "GitBot: Auto-update Font metadata & Preview [skip ci]"
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -141,17 +151,44 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Production WebUI
+        run: |
+          cd webroot
+          npm install
+          npm run build
+          cp -r cgi-bin dist/
+          cd ..
+
+      - name: Generate template.zip
+        run: |
+          mkdir -p Template_Build
+          cp -r binaries META-INF action.sh module.prop monitor.sh service.sh utils.sh Template_Build/
+          cp -r webroot/dist Template_Build/webroot
+          cd Template_Build
+          zip -r ../template.zip .
+          cd ..
+          mkdir -p Template
+          mv template.zip Template/
+
+      - name: Prepare Master Folder
+        run: |
+          mkdir -p Master_Staging
+          cp -r binaries META-INF Template action.sh customize.sh utils.sh monitor.sh module.prop service.sh Master_Staging/
+          cp -r webroot/dist Master_Staging/webroot
+
       - name: Extract Metadata from module.prop
         id: metadata
         run: |
           RAW_VERSION=$(grep -oP '^version=\K.*' module.prop | tr -d '\r')
-
           VERSION=${RAW_VERSION#v}
-
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "filename=FontCraftPro_V${VERSION}_By_RipperHybrid.zip" >> $GITHUB_OUTPUT
-
           if [ -f "changelog.md" ]; then
             echo "body_file=changelog.md" >> $GITHUB_OUTPUT
           else
@@ -162,16 +199,9 @@ jobs:
 
       - name: Create Release Zip
         run: |
-          zip -r ${{ steps.metadata.outputs.filename }} \
-          binaries \
-          META-INF \
-          Template \
-          webroot \
-          action.sh \
-          customize.sh \
-          utils.sh \
-          module.prop \
-          service.sh
+          cd Master_Staging
+          zip -r ../${{ steps.metadata.outputs.filename }} .
+          cd ..
 
       - name: Check for Edit and Append Footer
         env:
@@ -179,11 +209,9 @@ jobs:
         run: |
           TAG="${{ steps.metadata.outputs.tag }}"
           BODY_FILE="${{ steps.metadata.outputs.body_file }}"
-
           if gh release view "$TAG" > /dev/null 2>&1; then
             NOW_DATE=$(date +'%Y-%m-%d')
             NOW_TIME=$(date +'%H:%M:%S')
-
             echo "" >> "$BODY_FILE"
             echo "- Edited: Date: $NOW_DATE Time: $NOW_TIME" >> "$BODY_FILE"
           fi
@@ -216,26 +244,20 @@ jobs:
           if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ]; then
             exit 0
           fi
-
           if [ ! -f "$ZIP_NAME" ]; then
             exit 1
           fi
-
           COMMIT_SUBJECT=$(git log -1 --pretty=%s)
           COMMIT_BODY=$(git log -1 --pretty=%b)
-
           if [ -n "$COMMIT_BODY" ]; then
             RAW_CAPTION=$(printf '%s\n\n%s' "$COMMIT_SUBJECT" "$COMMIT_BODY")
           else
             RAW_CAPTION="$COMMIT_SUBJECT"
           fi
-
           if [ ${#RAW_CAPTION} -ge 1024 ]; then
             RAW_CAPTION=$(printf '%s\n\n%s' "${RAW_CAPTION:0:950}" "... (truncated due to Telegram limit)")
           fi
-
           printf '%s' "$RAW_CAPTION" > /tmp/tg_caption.txt
-
           if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
             BTN_TEXT="Manual Run ⚡️"
             BTN_URL="${SERVER_URL}/${REPO_SLUG}/actions/runs/${RUN_ID}"
@@ -243,13 +265,11 @@ jobs:
             BTN_TEXT="View Changelog 📋"
             BTN_URL="${SERVER_URL}/${REPO_SLUG}/commit/${COMMIT_HASH}"
           fi
-
           REPO_URL="${SERVER_URL}/${REPO_SLUG}"
           KEYBOARD_JSON="{\"inline_keyboard\":[[{\"text\":\"$BTN_TEXT\",\"url\":\"$BTN_URL\"},{\"text\":\"Repo 🏠\",\"url\":\"$REPO_URL\"}]]}"
-
           curl -s \
                -F "chat_id=$CHAT_ID" \
                -F "document=@$ZIP_NAME" \
-               -F "caption=<//tmp/tg_caption.txt" \
+               -F "caption=</tmp/tg_caption.txt" \
                -F "reply_markup=$KEYBOARD_JSON" \
                "https://api.telegram.org/bot$BOT_TOKEN/sendDocument"
