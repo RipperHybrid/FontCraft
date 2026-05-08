@@ -1,36 +1,61 @@
 #!/system/bin/sh
 
 # FontCraft Command Executor - Localhost Bridge
+# Acts as the CGI backend for the WebUI, handling authentication,
+# execution, and JSON formatting for the frontend.
 
+FC_ROOT="/cache/fontcraft"
+
+# 1. Environment Setup: Locate a reliable BusyBox binary
 BB=""
 for candidate in /data/adb/ksu/bin/busybox /data/adb/magisk/busybox /data/adb/ap/bin/busybox; do
     [ -x "$candidate" ] && BB="$candidate" && break
 done
 
-# If no busybox found, fail
-[ -z "$BB" ] && echo '{"code": 1, "stdout": "Error: BusyBox not found"}' && exit 1
+# Fail gracefully with HTTP headers if BusyBox is missing
+if [ -z "$BB" ]; then
+    echo "Content-Type: application/json"
+    echo "Cache-Control: no-store"
+    echo ""
+    echo '{"code": 1, "stdout": "Error: BusyBox not found"}'
+    exit 1
+fi
 
-# Export PATH
+# Export BusyBox directory to PATH to prioritize its applets
 BB_DIR=$(dirname "$BB")
 export PATH="$BB_DIR:$PATH"
 
-# Token check
-TOKEN_FILE="../nexus/uplink_key"
+# 2. Security & Authentication
+# The uplink_key is stored securely outside the webroot. Verify the incoming token.
+TOKEN_FILE="$FC_ROOT/uplink_key"
 if [ -f "$TOKEN_FILE" ]; then
-    REAL_TOKEN=$(cat "$TOKEN_FILE" 2>/dev/null)
+    REAL_TOKEN=$(cat "$TOKEN_FILE" 2>/dev/null | tr -d '[:space:]')
     INCOMING_TOKEN=$(echo "$HTTP_X_FONTCRAFT_TOKEN" | tr -d '[:space:]')
-    [ -n "$REAL_TOKEN" ] && [ "$INCOMING_TOKEN" != "$REAL_TOKEN" ] && exit 1
+
+    # Fail gracefully with HTTP headers if token is invalid or missing
+    if [ -n "$REAL_TOKEN" ] && [ "$INCOMING_TOKEN" != "$REAL_TOKEN" ]; then
+        echo "Content-Type: application/json"
+        echo "Cache-Control: no-store"
+        echo ""
+        echo '{"code": 1, "stdout": "Error: Unauthorized access (Invalid Token)"}'
+        exit 1
+    fi
 fi
 
-# Heartbeat
-[ -f "../../.session_state" ] && echo "$(cat ../nexus/server_port) $(($(date +%s) + 300)) $(date +%s)" > "../../.session_state"
+# 3. Session Management
+# Update heartbeat: Push absolute deadline 5 minutes (300s) into the future.
+if [ -f "$FC_ROOT/.session_state" ]; then
+    read S_PORT S_DEAD < "$FC_ROOT/.session_state"
+    S_PORT=$(echo "$S_PORT" | tr -d '\r' | tr -d ' ')
+    CURRENT_TIME=$(date +%s)
+    echo "$S_PORT $((CURRENT_TIME + 300))" > "$FC_ROOT/.session_state"
+fi
 
-# Read command
+# 4. Command Execution
 RAW_CMD=$(cat)
 
-# Check if command already starts with busybox path
 if echo "$RAW_CMD" | grep -qE "^/data/adb/.*/busybox "; then
-    # Command already has busybox, use as-is
+    # Command is already prefixed with busybox by the frontend
     if echo "$RAW_CMD" | grep -qE "/data/adb/modules|module install|--install-module|/system/fonts"; then
         OUTPUT=$(su -c "$RAW_CMD" 2>&1)
     else
@@ -38,7 +63,7 @@ if echo "$RAW_CMD" | grep -qE "^/data/adb/.*/busybox "; then
     fi
     EXITCODE=$?
 else
-    # Prefix with busybox
+    # Prefix execution manually with our discovered BusyBox
     if echo "$RAW_CMD" | grep -qE "/data/adb/modules|module install|--install-module|/system/fonts"; then
         OUTPUT=$(su -c "$BB sh -c '$RAW_CMD'" 2>&1)
     else
@@ -47,16 +72,17 @@ else
     EXITCODE=$?
 fi
 
-# Return JSON
+# 5. Output Formatting
 echo "Content-Type: application/json"
 echo "Cache-Control: no-store"
 echo ""
 
-# Use jq if available, fallback to sed
+# Use bundled jq for safe JSON serialization if available
 JQ="/data/adb/modules/StylizeText/binaries/jq"
 if [ -x "$JQ" ]; then
     printf '%s' "$OUTPUT" | "$JQ" -Rs --argjson code "$EXITCODE" '{code: $code, stdout: .}'
 else
+    # Fallback to sed escaping for quotes and newlines
     SAFE_OUT=$(printf '%s' "$OUTPUT" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e ':a;N;$!ba;s/\n/\\n/g')
     printf '{"code": %d, "stdout": "%s"}\n' "$EXITCODE" "$SAFE_OUT"
 fi

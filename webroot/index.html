@@ -4,190 +4,227 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FontCraft</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <script src="js/icons.js"></script>
     <script type="module" src="js/main.js"></script>
 </head>
 <body>
-    <div class="app">
-        <header class="header">
-            <div class="header-left">
-                <h1>FontCraft</h1>
-                <span class="subtitle" id="repo-source">Connecting...</span>
-            </div>
-            <div class="header-right">
-                <button type="button" id="settingsBtn" class="theme-btn" title="Settings"></button>
-                <button type="button" id="themeToggle" class="theme-btn" title="Toggle Theme"></button>
-            </div>
-        </header>
-        <main class="main">
-            <div class="build-controls" id="buildControls">
-                <div class="queue-status">
-                    <span id="emojiStatus" class="status-badge empty">Emoji: None</span>
-                    <span id="clearContainer"></span>
-                    <span id="fontStatus" class="status-badge empty">Font: None</span>
-                </div>
-                <button id="flashBtn" class="flash-btn" onclick="window.fontUI.processAndFlash()" disabled>Select items to Flash</button>
-            </div>
-            <div class="nav-tabs">
-                <button class="tab-btn active" onclick="switchTab('Emoji')">Emojis</button>
-                <button class="tab-btn" onclick="switchTab('Fonts')">Fonts</button>
-            </div>
-            <div id="loader" class="loading-container">
-                <div class="spinner"></div>
-                <p>Fetching Library...</p>
-            </div>
-            <div id="gridContainer" class="grid-container"></div>
-        </main>
-        <footer class="footer">
-            <div class="footer-content">
-                <div class="powered-by-badge"><span class="badge-text">Powered by AshBorn</span></div>
-            </div>
-        </footer>
-    </div>
 
-    <div id="installModal" class="modal-overlay">
-        <div class="modal-box">
-            <div class="modal-header">
-                <h3 id="modalTitle">Select Version</h3>
-                <button class="close-modal">&times;</button>
-            </div>
-            <div class="modal-content">
-                <div id="downloadProgress" class="download-progress"><div class="progress-bar"></div></div>
-                <img id="modalPreview" src="" class="modal-preview-img" onerror="this.style.display='none'">
-                <div class="file-list" id="modalFileList"></div>
-            </div>
+<div class="ambient ambient-1"></div>
+<div class="ambient ambient-2"></div>
+
+<div class="app">
+
+    <header class="header">
+        <div class="header-left">
+            <h1>FontCraft</h1>
+            <span class="subtitle">
+                <span class="subtitle-dot"></span>
+                <span id="repo-source">Connecting...</span>
+            </span>
         </div>
-    </div>
+        <div class="header-right">
+            <button type="button" id="settingsBtn" class="theme-btn" title="Settings"></button>
+        </div>
+    </header>
 
-    <div id="clearSelectionModal" class="modal-overlay">
-        <div class="modal-box">
-            <div class="modal-header">
-                <h3>Clear Selection</h3>
-                <button class="close-modal" onclick="window.fontUI.closeClearModal()">&times;</button>
-            </div>
-            <div class="modal-content">
-                <div class="selection-options">
-                    <button class="selection-btn" onclick="window.fontUI.clearQueueItem('Emoji')">Clear Emoji</button>
-                    <button class="selection-btn" onclick="window.fontUI.clearQueueItem('Fonts')">Clear Font</button>
-                    <button class="selection-btn danger" onclick="window.fontUI.clearQueueItem('Both')">Clear Both</button>
+    <main class="main">
+
+        <div class="build-controls" id="buildControls">
+            <div class="build-controls-label">Build Queue</div>
+            <div class="queue-status">
+                <div class="queue-slot" id="emojiSlot">
+                    <div class="queue-slot-label">Emoji</div>
+                    <span id="emojiStatus" class="status-badge">None</span>
+                </div>
+                <div class="queue-sep">+</div>
+                <div class="queue-slot" id="fontSlot">
+                    <div class="queue-slot-label">Font</div>
+                    <span id="fontStatus" class="status-badge">None</span>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div id="confirmationModal" class="modal-overlay">
-        <div class="modal-box curvy-modal">
-            <div class="modal-header">
-                <h3 id="confTitle">Confirmation</h3>
-            </div>
-            <div class="modal-content">
-                <p id="confDescription"></p>
-                <div class="mtf-actions">
-                    <button id="confYesBtn" class="mtf-btn yes-btn">Yes</button>
-                    <button id="confNoBtn" class="mtf-btn no-btn">No</button>
-                </div>
+            <div class="queue-actions">
+                <button id="flashBtn" class="flash-btn" onclick="window.fontUI.processAndFlash()" disabled>
+                    &#9889; Select to Flash
+                </button>
+                <span id="clearContainer"></span>
             </div>
         </div>
-    </div>
 
-    <div id="terminalModal" class="modal-overlay">
-        <div class="modal-box terminal-box">
-            <div class="modal-header">
-                <h3>Installation Output</h3>
-                <button class="close-modal" id="termCloseBtn" onclick="window.fontUI.closeTerminal()">&times;</button>
+        <div class="nav-tabs">
+            <button class="tab-btn active" data-tab="Emoji" onclick="switchTab('Emoji')">Emojis</button>
+            <button class="tab-btn" data-tab="Fonts" onclick="switchTab('Fonts')">Fonts</button>
+        </div>
+
+        <div id="gridContainer" class="grid-container"></div>
+
+        <div id="loader" class="loading-container">
+            <div class="spinner"></div>
+            <p>Fetching Library...</p>
+        </div>
+
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="powered-by-badge">
+                <span class="badge-text">Powered by AshBorn</span>
             </div>
-            <div class="modal-content terminal-wrapper">
-                <pre id="terminalOutput">Waiting for command...</pre>
+        </div>
+    </footer>
+
+</div>
+
+<button id="rebootFab" class="fab-btn hidden" onclick="window.fontUI.promptReboot()" title="Reboot Device">
+    <span class="fab-icon" id="rebootFabIcon"></span>
+</button>
+
+<div id="installModal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 id="modalTitle">Select Version</h3>
+            <button class="close-modal">&times;</button>
+        </div>
+        <div class="modal-content">
+            <div id="downloadProgress" class="download-progress"><div class="progress-bar"></div></div>
+            <img id="modalPreview" src="" class="modal-preview-img" onerror="this.style.display='none'">
+            <div class="file-list" id="modalFileList"></div>
+        </div>
+    </div>
+</div>
+
+<div id="clearSelectionModal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Clear Selection</h3>
+            <button class="close-modal" onclick="window.fontUI.closeClearModal()">&times;</button>
+        </div>
+        <div class="modal-content">
+            <div class="selection-options">
+                <button class="selection-btn" onclick="window.fontUI.clearQueueItem('Emoji')">Clear Emoji</button>
+                <button class="selection-btn" onclick="window.fontUI.clearQueueItem('Fonts')">Clear Font</button>
+                <button class="selection-btn danger" onclick="window.fontUI.clearQueueItem('Both')">Clear Both</button>
             </div>
         </div>
     </div>
+</div>
 
-    <div id="fileSelectorModal" class="modal-overlay">
-        <div class="modal-box file-browser-box">
-            <div class="modal-header file-selector-header">
-                <button id="file-selector-back" class="file-nav-btn" title="Go Up"></button>
-                <div id="file-selector-path" class="current-path"></div>
-                <button id="file-selector-close" class="close-modal" onclick="window.fontUI.closeCustomFilePicker()">&times;</button>
-            </div>
-            <div class="modal-content" id="file-selector-list-wrapper">
-                <div id="file-selector-list" class="file-list"></div>
+<div id="confirmationModal" class="modal-overlay">
+    <div class="modal-box curvy-modal">
+        <div class="modal-header">
+            <h3 id="confTitle">Confirmation</h3>
+        </div>
+        <div class="modal-content">
+            <p id="confDescription"></p>
+            <div class="mtf-actions">
+                <button id="confYesBtn" class="mtf-btn yes-btn">Yes</button>
+                <button id="confNoBtn" class="mtf-btn no-btn">No</button>
             </div>
         </div>
     </div>
+</div>
 
-    <div id="settingsModal" class="modal-overlay">
-        <div class="modal-box">
-            <div class="modal-header">
-                <h3>Settings</h3>
-                <button class="close-modal" onclick="window.fontUI.closeSettings()">&times;</button>
-            </div>
-            <div class="modal-content">
-                <div class="settings-group">
-                    <label>Library Source (JSON)</label>
-                    <div class="input-row">
-                        <input type="text" id="sourceInput" placeholder="Enter JSON URL" class="settings-input">
-                        <button class="settings-action-btn" onclick="window.fontUI.validateAndSetSource()">Apply</button>
+<div id="terminalModal" class="modal-overlay">
+    <div class="modal-box terminal-box">
+        <div class="modal-header">
+            <h3>Installation Output</h3>
+            <button class="close-modal" id="termCloseBtn" onclick="window.fontUI.closeTerminal()">&times;</button>
+        </div>
+        <div class="modal-content terminal-wrapper">
+            <pre id="terminalOutput">Waiting for command...</pre>
+        </div>
+    </div>
+</div>
+
+<div id="fileSelectorModal" class="modal-overlay">
+    <div class="modal-box file-browser-box">
+        <div class="modal-header file-selector-header">
+            <button id="file-selector-back" class="file-nav-btn" title="Go Up"></button>
+            <div id="file-selector-path" class="current-path"></div>
+            <button id="file-selector-close" class="close-modal" onclick="window.fontUI.closeCustomFilePicker()">&times;</button>
+        </div>
+        <div class="modal-content" id="file-selector-list-wrapper">
+            <div id="file-selector-list" class="file-list"></div>
+        </div>
+    </div>
+</div>
+
+<div id="settingsModal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Settings</h3>
+            <button class="close-modal" onclick="window.fontUI.closeSettings()">&times;</button>
+        </div>
+        <div class="modal-content">
+            <div class="settings-group">
+                <label>Library Source</label>
+                <div class="input-row" style="margin-bottom: 8px;">
+                    <div class="custom-select-wrapper" id="mirrorSelectWrapper">
+                        <div class="custom-select-trigger" id="mirrorSelectTrigger">
+                            <span>Auto-Detect (Default)</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="custom-select-options" id="mirrorSelectOptions">
+                            <div class="custom-option selected" data-value="default">Auto-Detect (Default)</div>
+                            <div class="custom-option" data-value="custom">Custom URL...</div>
+                        </div>
                     </div>
+                    <button class="settings-action-btn" onclick="window.fontUI.applySelectedMirror()">Apply</button>
                 </div>
-                <div class="settings-group">
-                    <label>Root Manager & Binaries</label>
-                    <p class="warning-text">Warning: Do not modify these settings unless you know what you are doing.</p>
-                    <div class="preset-container">
-                        <button class="preset-card ksu-btn" onclick="window.fontUI.applyPreset('ksu')">
-                            <div class="preset-icon"></div>
-                            <div class="preset-info">
-                                <span class="preset-title">KernelSU</span>
-                                <span class="preset-desc">KSU Paths</span>
-                            </div>
-                        </button>
-                        <button class="preset-card apatch-btn" onclick="window.fontUI.applyPreset('apatch')">
-                            <div class="preset-icon"></div>
-                            <div class="preset-info">
-                                <span class="preset-title">APatch</span>
-                                <span class="preset-desc">APD Paths</span>
-                            </div>
-                        </button>
-                        <button class="preset-card magisk-btn" onclick="window.fontUI.applyPreset('magisk')">
-                            <div class="preset-icon"></div>
-                            <div class="preset-info">
-                                <span class="preset-title">Magisk</span>
-                                <span class="preset-desc">Magisk Paths</span>
-                            </div>
-                        </button>
-                    </div>
-                    <div class="binary-selector">
-                        <label>BusyBox Path:</label>
-                        <div class="path-display" id="bbPathDisplay" onclick="window.fontUI.openBinaryPicker('busybox')">Detecting...</div>
-                    </div>
-                    <div class="binary-selector">
-                        <label>Installer (Root Cmd):</label>
-                        <div class="path-display" id="installerPathDisplay" onclick="window.fontUI.openBinaryPicker('installer')">Detecting...</div>
-                    </div>
+                <div class="input-row" id="customUrlRow" style="display: none;">
+                    <input type="text" id="sourceInput" placeholder="Enter JSON URL" class="settings-input">
                 </div>
-                <div class="settings-group" style="text-align: center;">
-                    <label style="text-align: left;">Debug & Diagnostics</label>
-                    <button class="debug-launch-btn" onclick="window.fontUI.openDebugConsole()">
-                        <span class="debug-icon">⚙</span> Open Debug Console
+            </div>
+            <div class="settings-group">
+                <label>Root Manager &amp; Binaries</label>
+                <div class="preset-container">
+                    <button class="preset-card ksu-btn" onclick="window.fontUI.applyPreset('ksu')">
+                        <div class="preset-icon"></div>
+                        <span class="preset-title">KernelSU Paths</span>
+                    </button>
+                    <button class="preset-card apatch-btn" onclick="window.fontUI.applyPreset('apatch')">
+                        <div class="preset-icon"></div>
+                        <span class="preset-title">APatch Paths</span>
+                    </button>
+                    <button class="preset-card magisk-btn" onclick="window.fontUI.applyPreset('magisk')">
+                        <div class="preset-icon"></div>
+                        <span class="preset-title">Magisk Paths</span>
                     </button>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="debugModal" class="modal-overlay">
-        <div class="modal-box terminal-box">
-            <div class="modal-header">
-                <h3>Debug Console</h3>
-                <div style="display:flex; gap:10px;">
-                    <button class="download-action-btn" style="padding: 2px 8px; font-size: 0.8em;" onclick="window.fontUI.copyDebugLog()">Copy</button>
-                    <button class="close-modal" onclick="window.fontUI.closeDebugConsole()">&times;</button>
+                <div class="binary-selector">
+                    <label>BusyBox Path</label>
+                    <div class="path-display" id="bbPathDisplay" onclick="window.fontUI.openBinaryPicker('busybox')">Detecting...</div>
+                </div>
+                <div class="binary-selector">
+                    <label>Installer (Root Cmd)</label>
+                    <div class="path-display" id="installerPathDisplay" onclick="window.fontUI.openBinaryPicker('installer')">Detecting...</div>
                 </div>
             </div>
-            <div class="modal-content terminal-wrapper">
-                <pre id="debugOutput" style="font-size: 0.75em; color: #ccc;">Initializing...</pre>
+            <div class="settings-group" style="text-align: center; margin-bottom: 4px;">
+                <label style="text-align: left;">Debug &amp; Diagnostics</label>
+                <button class="debug-launch-btn" onclick="window.fontUI.openDebugConsole()">
+                    <span class="debug-icon">⚙️</span> Open Debug Console
+                </button>
             </div>
         </div>
     </div>
+</div>
+
+<div id="debugModal" class="modal-overlay">
+    <div class="modal-box terminal-box">
+        <div class="modal-header">
+            <h3>Debug Console</h3>
+            <div style="display:flex; gap:10px;">
+                <button class="download-action-btn" style="padding: 4px 10px; font-size: 0.65em;" onclick="window.fontUI.copyDebugLog()">Copy</button>
+                <button class="close-modal" onclick="window.fontUI.closeDebugConsole()">&times;</button>
+            </div>
+        </div>
+        <div class="modal-content terminal-wrapper">
+            <pre id="debugOutput" style="font-size: 0.68em; color: var(--text1);">Initializing...</pre>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>

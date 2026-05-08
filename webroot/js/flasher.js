@@ -1,5 +1,5 @@
 import { CONFIG, STATE } from './config.js';
-import { wait, showToast } from './utils.js';
+import { wait, showToast, checkInternet, cleanupWorkspace } from './utils.js';
 
 export async function processAndFlash() {
     const hasNativeRoot = typeof ksu !== 'undefined';
@@ -12,63 +12,8 @@ export async function processAndFlash() {
 
     const btn = document.getElementById('flashBtn');
     const originalText = btn.innerText;
-    let isMetamoduleMode = false;
 
     btn.disabled = true;
-    btn.innerText = "Checking Environment...";
-
-    try {
-        const metaResult = await this.ksuExec(`grep -r "metamodule=1" /data/adb/modules/*/module.prop`);
-
-        if (metaResult && metaResult.trim().length > 0) {
-            const userConfirmed = await new Promise((resolve) => {
-                const modal = document.getElementById('confirmationModal');
-                const title = document.getElementById('confTitle');
-                const desc = document.getElementById('confDescription');
-                const yesBtn = document.getElementById('confYesBtn');
-                const noBtn = document.getElementById('confNoBtn');
-
-                title.innerText = "Metamodule Detected";
-
-                desc.innerHTML = `We detected a Metamodule configuration (<b>metamodule=1</b>).<br><br>
-                This installation may involve <b>live patching</b>. While usually seamless, modifying font directories live can sometimes cause text to disappear or the System UI to freeze immediately after flashing.<br><br>
-                <b>If this happens, do not panic.</b><br>
-                It is temporary. Simply <b>reboot your device</b> manually via the Power Menu. If the UI is completely unresponsive, force a restart by holding <b>Power + Volume Up</b> until the device reboots.<br><br>
-                Do you want to proceed?`;
-
-                modal.classList.add('active');
-                this.toggleBodyLock(true);
-
-                const cleanup = () => {
-                    modal.classList.remove('active');
-                    this.toggleBodyLock(false);
-                    yesBtn.onclick = null;
-                    noBtn.onclick = null;
-                };
-
-                yesBtn.onclick = () => {
-                    cleanup();
-                    resolve(true);
-                };
-
-                noBtn.onclick = () => {
-                    cleanup();
-                    resolve(false);
-                };
-            });
-
-            if (!userConfirmed) {
-                btn.innerText = originalText;
-                btn.disabled = false;
-                showToast("Operation Cancelled", 'info');
-                return;
-            }
-            isMetamoduleMode = true;
-            const targetMetaPath = "/data/adb/metamodule/mnt/StylizeText/system/";
-            await this.ksuExec(`if [ -d "${targetMetaPath}" ]; then rm -rf "${targetMetaPath}"; fi`);
-        }
-    } catch (err) {}
-
     btn.innerText = "Processing...";
     this.showTerminal();
     this.updateTerminal("Starting Build Process...");
@@ -78,7 +23,8 @@ export async function processAndFlash() {
         const isLocalEmoji = this.queue.Emoji && (this.queue.Emoji.path.startsWith('/storage/') || this.queue.Emoji.path.startsWith('/mnt/'));
         const isLocalFont = this.queue.Fonts && (this.queue.Fonts.path.startsWith('/storage/') || this.queue.Fonts.path.startsWith('/mnt/'));
 
-        const templatePath = `${CONFIG.TEMP_DIR}/template.zip`;
+        const templatePath = `${CONFIG.WORK_DIR}/template.zip`;
+        const moduleDir = `${CONFIG.WORK_DIR}/module`;
         let useLocalTemplate = false;
 
         try {
@@ -87,42 +33,49 @@ export async function processAndFlash() {
         } catch(e) {}
 
         if ((!isLocalEmoji || !isLocalFont) && !useLocalTemplate) {
-            if (!(await this.checkInternet())) throw new Error("No internet connection");
+            if (!(await checkInternet(this.ksuExec.bind(this), STATE.ROOT_BIN, STATE.BB))) throw new Error("No internet connection");
         }
 
         this.updateTerminal("Cleaning workspace...");
-        await this.ksuExec(`rm -rf "${CONFIG.BUILD_DIR}" && mkdir -p "${CONFIG.BUILD_DIR}"`);
+        await this.ksuExec(`mkdir -p "${moduleDir}" && rm -rf "${moduleDir}"/*`);
 
         if (useLocalTemplate) {
             this.updateTerminal("Using Local Template...");
             await this.ksuExec(`cp "${CONFIG.LOCAL_TEMPLATE}" "${templatePath}"`);
         } else {
             this.updateTerminal("Downloading Template...");
-            if (!(await this.checkInternet())) throw new Error("No internet connection to download template");
+            if (!(await checkInternet(this.ksuExec.bind(this), STATE.ROOT_BIN, STATE.BB))) throw new Error("No internet connection to download template");
             await this.ksuExec(`${STATE.BB} wget --no-check-certificate -O "${templatePath}" "${CONFIG.TEMPLATE_URL}"`);
         }
 
         this.updateTerminal("Extracting Template...");
-        await this.ksuExec(`sh -c "${STATE.BB} unzip -o '${templatePath}' -d '${CONFIG.BUILD_DIR}'"`);
-        await this.ksuExec(`mkdir -p "${CONFIG.BUILD_DIR}/system/fonts"`);
+        await this.ksuExec(`sh -c "${STATE.BB} unzip -o '${templatePath}' -d '${moduleDir}'"`);
+        await this.ksuExec(`mkdir -p "${moduleDir}/system/fonts"`);
 
         let fontName = "";
         let emojiName = "";
 
         if (this.queue.Emoji) {
             this.updateTerminal(`Copying Emoji: ${this.queue.Emoji.filename}`);
-            await this.ksuExec(`cp "${this.queue.Emoji.path}" "${CONFIG.BUILD_DIR}/system/fonts/NotoColorEmoji.ttf"`);
+            await this.ksuExec(`cp "${this.queue.Emoji.path}" "${moduleDir}/system/fonts/NotoColorEmoji.ttf"`);
             emojiName = this.queue.Emoji.filename.replace(/\.[^/.]+$/, "");
         }
+
         if (this.queue.Fonts) {
             this.updateTerminal(`Copying Font: ${this.queue.Fonts.filename}`);
             const fontPath = this.queue.Fonts.path;
             fontName = this.queue.Fonts.filename.replace(/\.[^/.]+$/, "");
-            let copyCmd = "";
-            CONFIG.SYSTEM_FONTS.forEach(sysFont => {
-                copyCmd += `cp "${fontPath}" "${CONFIG.BUILD_DIR}/system/fonts/${sysFont}"; `;
-            });
+            const installedFilename = this.queue.Fonts.filename;
+
+            const sysFontsList = CONFIG.SYSTEM_FONTS.join(" ");
+            const copyCmd = `for f in ${sysFontsList}; do if [ -f "/system/fonts/$f" ]; then cp "${fontPath}" "${moduleDir}/system/fonts/$f"; fi; done; cp "${fontPath}" "${moduleDir}/system/fonts/${installedFilename}"`;
             await this.ksuExec(copyCmd);
+
+            this.updateTerminal("Patching font XMLs...");
+            const etcDir = `${moduleDir}/system/etc`;
+            await this.ksuExec(`mkdir -p "${etcDir}" && \
+if [ -f "/system/etc/font_fallback.xml" ]; then cp /system/etc/font_fallback.xml "${etcDir}/font_fallback.xml" && awk -v fn="${installedFilename}" '/^[[:space:]]*<family name="sans-serif">/{skip=1;print "  <family name=\\"sans-serif\\">";print "    <font supportedAxes=\\"wght,ital\\">";print "      "fn;print "      <axis tag=\\"wdth\\" stylevalue=\\"100.0\\"/>";print "    </font>";print "  </family>";next}/^[[:space:]]*<family name="sans-serif-condensed">/{skip=1;print "  <family name=\\"sans-serif-condensed\\">";print "    <font supportedAxes=\\"wght,ital\\">";print "      "fn;print "      <axis tag=\\"wdth\\" stylevalue=\\"75.0\\"/>";print "    </font>";print "  </family>";next}skip&&/^[[:space:]]*<\\/family>/{skip=0;next}skip{next}{print}' "${etcDir}/font_fallback.xml" > "${etcDir}/font_fallback.xml.tmp" && mv "${etcDir}/font_fallback.xml.tmp" "${etcDir}/font_fallback.xml"; fi && \
+if [ -f "/system/etc/fonts.xml" ]; then cp /system/etc/fonts.xml "${etcDir}/fonts.xml" && awk -v fn="${installedFilename}" '/^[[:space:]]*<family name="sans-serif">/{skip=1;print "    <family name=\\"sans-serif\\">";for(w=1;w<=9;w++){wt=w"00";print "        <font weight=\\"" wt "\\" style=\\"normal\\">"fn"</font>"}for(w=1;w<=9;w++){wt=w"00";print "        <font weight=\\"" wt "\\" style=\\"italic\\">"fn"</font>"}print "    </family>";next}skip&&/^[[:space:]]*<\\/family>/{skip=0;next}skip{next}{print}' "${etcDir}/fonts.xml" > "${etcDir}/fonts.xml.tmp" && mv "${etcDir}/fonts.xml.tmp" "${etcDir}/fonts.xml"; fi`);
         }
 
         this.updateTerminal("Generating Config Scripts...");
@@ -132,28 +85,28 @@ export async function processAndFlash() {
 
         if (fontName && emojiName) {
             uiPrintMsg = `Flashing ${fontName} & ${emojiName}`;
-            descMsg = `description=📥 Injected ${fontName} font and ${emojiName} emoji support.`;
+            descMsg = `description=🔥 Injected ${fontName} font and ${emojiName} emoji support.`;
         } else if (fontName) {
             uiPrintMsg = `Flashing ${fontName}`;
-            descMsg = `description=📥 Applied ${fontName} font injection.`;
+            descMsg = `description=🔥 Applied ${fontName} font injection.`;
         } else if (emojiName) {
             uiPrintMsg = `Flashing ${emojiName}`;
-            descMsg = `description=📥 Applied ${emojiName} emoji support.`;
+            descMsg = `description=🔥 Applied ${emojiName} emoji support.`;
         }
 
-        const customizeScript = `#!/sbin/sh\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print "   FontCraft Module Builder       "\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print " "\nui_print "- ${uiPrintMsg}"\nsleep 2\nui_print " "\nif [ -d "$MODPATH/binaries" ]; then\n    chmod +x "$MODPATH"/binaries/*\n    ui_print "- ✅ Set execute permissions for all binaries."\n    ui_print " "\nfi\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print " "`;
+        const customizeScript = `#!/sbin/sh\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print "   FontCraft Module Builder       "\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print " "\nui_print "- ${uiPrintMsg}"\nsleep 2\nui_print " "\nif [ -d "$MODPATH/binaries" ]; then\n    chmod +x "$MODPATH"/binaries/*\n    ui_print "- ✅ Set execute permissions for all binaries."\n    ui_print " "\nfi\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print " "`;
 
-        await this.ksuExec(`echo '${customizeScript}' > "${CONFIG.BUILD_DIR}/customize.sh"`);
-        await this.ksuExec(`printf "\\n" >> "${CONFIG.BUILD_DIR}/module.prop"`);
-        await this.ksuExec(`echo "${descMsg}" >> "${CONFIG.BUILD_DIR}/module.prop"`);
+        await this.ksuExec(`echo '${customizeScript}' > "${moduleDir}/customize.sh"`);
+        await this.ksuExec(`printf "\\n" >> "${moduleDir}/module.prop"`);
+        await this.ksuExec(`echo "${descMsg}" >> "${moduleDir}/module.prop"`);
 
         this.updateTerminal("Zipping Module...");
         await wait(50);
 
-        const finalZip = `${CONFIG.TEMP_DIR}/FontCraft_Install.zip`;
+        const finalZip = `${CONFIG.WORK_DIR}/FontCraft_Install.zip`;
         const zipBinary = STATE.ZIP_BIN || `${CONFIG.MOD_BIN}/zip`;
 
-        await this.ksuExec(`cd "${CONFIG.BUILD_DIR}" && ${zipBinary} -r "${finalZip}" .`);
+        await this.ksuExec(`cd "${moduleDir}" && ${zipBinary} -r "${finalZip}" .`);
 
         const installCmd = `${STATE.ROOT_CMD} ${STATE.INSTALL_ARGS} "${finalZip}"`;
         this.updateTerminal("\n>>> Executing Installer");
@@ -165,8 +118,8 @@ export async function processAndFlash() {
         await wait(10);
 
         const output = (typeof results === 'object' && results !== null)
-             ? (results.stdout + (results.stderr ? "\n" + results.stderr : ""))
-             : results;
+            ? (results.stdout + (results.stderr ? "\n" + results.stderr : ""))
+            : results;
 
         const exitCode = (typeof results === 'object' && results.errno !== undefined)
             ? results.errno
@@ -184,18 +137,20 @@ export async function processAndFlash() {
         this.updateTerminal("\n[PROCESS COMPLETED]");
 
         if (STATE.ROOT_MANAGER) this.updateTerminal(`Root Manager: ${STATE.ROOT_MANAGER.toUpperCase()}`);
-        await this.cleanup();
 
-        if (isMetamoduleMode) {
-            this.updateTerminal("\n⚠️ Metamodule Active");
-            this.updateTerminal(">>> Changes applied live.");
-            this.updateTerminal(">>> If UI/Fonts glitch, please reboot manually.");
-        }
+        this.updateTerminal("\n>>> Wiping physical workspace...");
+        await cleanupWorkspace(this.ksuExec.bind(this), CONFIG.WORK_DIR);
+        this.updateTerminal(">>> Workspace cleared.");
 
         document.getElementById('termCloseBtn').style.display = 'block';
+        document.getElementById('rebootFab').classList.remove('hidden');
 
         btn.innerText = originalText;
         btn.disabled = false;
+
+        this.queue = { Emoji: null, Fonts: null };
+        this.updateBuildUI();
+        this.renderGrid(this.currentCategory);
 
         showToast("Operation Complete", 'success');
 
@@ -205,10 +160,17 @@ export async function processAndFlash() {
         this.updateTerminal("\n>>> Status: Failed (Non-zero Exit Code)");
         this.updateTerminal(`Error Info: ${e.message}`);
 
+        this.updateTerminal("\n>>> Wiping physical workspace...");
+        await cleanupWorkspace(this.ksuExec.bind(this), CONFIG.WORK_DIR);
+        this.updateTerminal(">>> Workspace cleared.");
+
         document.getElementById('termCloseBtn').style.display = 'block';
 
         btn.innerText = originalText;
         btn.disabled = false;
-        this.cleanup();
+
+        this.queue = { Emoji: null, Fonts: null };
+        this.updateBuildUI();
+        this.renderGrid(this.currentCategory);
     }
 }
