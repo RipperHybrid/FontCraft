@@ -564,12 +564,9 @@ class FontCraftUI {
 
         try {
             if (!expectedBytes) {
-                await this.ksuExec(`echo "[Size Tracker] Fallback triggered. Fetching size via wget --spider..."`);
                 const sizeCmd = `sh -c "${STATE.BB} wget --spider --server-response '${url}' 2>&1 | ${STATE.BB} grep -i 'Content-Length' | tail -n 1 | awk '{print \\$2}' | tr -d '\\r'"`;
                 const sizeOutput = await this.ksuExec(sizeCmd);
                 expectedBytes = parseInt(sizeOutput.trim()) || 0;
-            } else {
-                await this.ksuExec(`echo "[Size Tracker] Target size pre-loaded from JSON: ${expectedBytes} bytes"`);
             }
 
             this.showToast(`Downloading ${filename}...`, 'info');
@@ -821,8 +818,7 @@ class FontCraftUI {
         let targetPath = "";
 
         if (category === 'Fonts') {
-            const sysFontsList = CONFIG.SYSTEM_FONTS.join(" ");
-            const findCmd = `for f in ${sysFontsList}; do if [ -f "${modPath}/system/fonts/$f" ]; then echo "${modPath}/system/fonts/$f"; break; fi; done`;
+            const findCmd = `find "${modPath}/system/fonts" -type f -name '*.ttf' ! -name '*Emoji*' | head -n 1`;
             try {
                 const result = await this.ksuExec(findCmd);
                 targetPath = result.trim();

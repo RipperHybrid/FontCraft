@@ -167,7 +167,7 @@ jobs:
       - name: Generate template.zip
         run: |
           mkdir -p Template_Build
-          cp -r binaries META-INF action.sh module.prop monitor.sh service.sh utils.sh Template_Build/
+          cp -r binaries META-INF action.sh module.prop monitor.sh service.sh utils.sh uninstall.sh Template_Build/
           cp -r webroot/dist Template_Build/webroot
           cd Template_Build
           zip -r ../template.zip .
@@ -178,7 +178,7 @@ jobs:
       - name: Prepare Master Folder
         run: |
           mkdir -p Master_Staging
-          cp -r binaries META-INF Template action.sh customize.sh utils.sh monitor.sh module.prop service.sh Master_Staging/
+          cp -r binaries META-INF Template action.sh customize.sh utils.sh monitor.sh module.prop service.sh uninstall.sh Master_Staging/
           cp -r webroot/dist Master_Staging/webroot
 
       - name: Extract Metadata from module.prop
