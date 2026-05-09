@@ -1,4 +1,4 @@
-import { CONFIG, STATE } from './config.js';
+import { CONFIG, STATE, MODULE_PATH } from './config.js';
 import { wait, showToast, checkInternet, cleanupWorkspace } from './utils.js';
 
 export async function processAndFlash() {
@@ -64,18 +64,19 @@ export async function processAndFlash() {
         if (this.queue.Fonts) {
             this.updateTerminal(`Copying Font: ${this.queue.Fonts.filename}`);
             const fontPath = this.queue.Fonts.path;
-            fontName = this.queue.Fonts.filename.replace(/\.[^/.]+$/, "");
-            const installedFilename = this.queue.Fonts.filename;
 
-            const sysFontsList = CONFIG.SYSTEM_FONTS.join(" ");
-            const copyCmd = `for f in ${sysFontsList}; do if [ -f "/system/fonts/$f" ]; then cp "${fontPath}" "${moduleDir}/system/fonts/$f"; fi; done; cp "${fontPath}" "${moduleDir}/system/fonts/${installedFilename}"`;
-            await this.ksuExec(copyCmd);
+            const rawFontName = this.queue.Fonts.filename.replace(/\.[^/.]+$/, "");
+            fontName = rawFontName.replace(/[^a-zA-Z0-9-]/g, "_");
 
-            this.updateTerminal("Patching font XMLs...");
-            const etcDir = `${moduleDir}/system/etc`;
-            await this.ksuExec(`mkdir -p "${etcDir}" && \
-if [ -f "/system/etc/font_fallback.xml" ]; then cp /system/etc/font_fallback.xml "${etcDir}/font_fallback.xml" && awk -v fn="${installedFilename}" '/^[[:space:]]*<family name="sans-serif">/{skip=1;print "  <family name=\\"sans-serif\\">";print "    <font supportedAxes=\\"wght,ital\\">";print "      "fn;print "      <axis tag=\\"wdth\\" stylevalue=\\"100.0\\"/>";print "    </font>";print "  </family>";next}/^[[:space:]]*<family name="sans-serif-condensed">/{skip=1;print "  <family name=\\"sans-serif-condensed\\">";print "    <font supportedAxes=\\"wght,ital\\">";print "      "fn;print "      <axis tag=\\"wdth\\" stylevalue=\\"75.0\\"/>";print "    </font>";print "  </family>";next}skip&&/^[[:space:]]*<\\/family>/{skip=0;next}skip{next}{print}' "${etcDir}/font_fallback.xml" > "${etcDir}/font_fallback.xml.tmp" && mv "${etcDir}/font_fallback.xml.tmp" "${etcDir}/font_fallback.xml"; fi && \
-if [ -f "/system/etc/fonts.xml" ]; then cp /system/etc/fonts.xml "${etcDir}/fonts.xml" && awk -v fn="${installedFilename}" '/^[[:space:]]*<family name="sans-serif">/{skip=1;print "    <family name=\\"sans-serif\\">";for(w=1;w<=9;w++){wt=w"00";print "        <font weight=\\"" wt "\\" style=\\"normal\\">"fn"</font>"}for(w=1;w<=9;w++){wt=w"00";print "        <font weight=\\"" wt "\\" style=\\"italic\\">"fn"</font>"}print "    </family>";next}skip&&/^[[:space:]]*<\\/family>/{skip=0;next}skip{next}{print}' "${etcDir}/fonts.xml" > "${etcDir}/fonts.xml.tmp" && mv "${etcDir}/fonts.xml.tmp" "${etcDir}/fonts.xml"; fi`);
+            this.updateTerminal("\n--- Running Dynamic Injection ---");
+
+            const injectCmd = `sh -c ". '${moduleDir}/utils.sh' && dynamic_replace_default_family '${fontPath}' '${moduleDir}'"`;
+            const injectOutput = await this.ksuExec(injectCmd);
+
+            if (injectOutput && injectOutput.trim() !== "") {
+                this.updateTerminal(injectOutput.trim());
+            }
+            this.updateTerminal("--- Injection Complete ---\n");
         }
 
         this.updateTerminal("Generating Config Scripts...");
