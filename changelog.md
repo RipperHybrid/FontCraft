@@ -1,18 +1,13 @@
-# FontCraft v7.0
-
-### 🎨 WebUI & Frontend Overhaul
-- **Vite Migration:** The entire WebUI has been rewritten and containerized using Vite and ES6 Modules for heavily optimized, lightning-fast execution.
-- **Visual Redesign:** Implemented a sleek, dark-themed UI featuring glassmorphism, ambient background glows, and a streamlined build queue.
-- **Custom Mirrors:** Added a dedicated dropdown in Settings to easily switch between auto-detected mirrors or manual JSON source URLs.
-- **Reboot FAB:** Added a floating action button to seamlessly reboot the device directly from the WebUI after a successful flash.
+# FontCraft v7.1
 
 ### ⚙️ Core Backend & Shell Upgrades
-- **Live XML Injection:** Engineered a dynamic patching system (`inject_font_xml`) that safely injects font targets directly into `/system/etc/fonts.xml` and `/system/etc/font_fallback.xml` for superior system-wide compatibility.
-- **Workspace Isolation:** Relocated all server state, tokens, and active build environments to a dedicated, secure directory (`/cache/fontcraft`), eliminating temp file clutter.
-- **Standalone Monitor:** Extracted the server watchdog into a dedicated `monitor.sh` script, dropping the old on-the-fly generation for better stability.
-- **Clean Uninstallation:** Introduced `uninstall.sh` to guarantee zero residual cache files or logs remain after module removal.
-- **Streamlined Action Menu:** Cleaned up `action.sh` to focus strictly on essential tasks (WebUI Launch, GMS Cleaner).
 
-### 🛠 CI/CD & Build Pipeline
-- **Node.js Integration:** Upgraded GitHub Actions to run a full Node 20 `npm build` pipeline, packing the optimized `dist` output into the final Magisk/KSU zip.
-- **Preview Matching:** Hardened the Python parsing script to perfectly map preview images to their respective font binaries in `fonts.json`.
+* **Pristine XML Backups:** Engineered a bulletproof backup system (`/data/adb/FontCraft_Backup`) that securely extracts and stores your OEM `fonts.xml` and `font_fallback.xml` before patching. This completely eliminates recursive update bugs and dirty flash corruption.
+* **Precision AWK Parsing:** Fixed a greedy regex bug in the XML scanner, ensuring flawlessly accurate dynamic font detection across all Android variants without wiping essential configuration lines.
+* **Native Port Scanning:** Upgraded the WebUI port generator to directly scan the kernel's routing table (`/proc/net/tcp` and `tcp6`) in pure Hexadecimal. This removes reliance on the often-missing `netstat` binary and guarantees zero port collisions.
+* **Sanitized Fallbacks:** Stripped out the bloated 8-file AOSP doomsday fallback. The script now cleanly and smartly targets only `Roboto-Regular.ttf` when flying blind, keeping your `/system/fonts` directory lightweight and strictly consistent.
+
+### 🎨 WebUI & Frontend Parity
+
+* **Unified Injection Engine:** Gutted the massive, redundant inline `awk` patching scripts from `flasher.js`. The WebUI now natively invokes `utils.sh` directly from the workspace, achieving 100% execution parity with the CLI installer.
+* **Dynamic Font Tracking:** Removed the hardcoded `SYSTEM_FONTS` array from `config.js`. The WebUI's current item selector now dynamically maps the live module directory (`/data/adb/modules`) to actively detect exactly which fonts are currently installed.

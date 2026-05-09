@@ -235,9 +235,11 @@ select_mode() {
     esac
 }
 
+
 ui_print "####################################"
 ui_print "   >[Magisk & KernelSU Compatible]<"
 ui_print "####################################"
+check_existing_install
 setup_binaries
 ui_print "#############################################"
 ui_print "            Menu Navigation:                     "

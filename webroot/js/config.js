@@ -1,5 +1,5 @@
-const MODULE_ID = "StylizeText";
-const MODULE_PATH = `/data/adb/modules/${MODULE_ID}`;
+export const MODULE_ID = "StylizeText";
+export const MODULE_PATH = `/data/adb/modules/${MODULE_ID}`;
 
 export const CONFIG = {
     MIRRORS_URL: "https://fontcraft.pages.dev/mirrors.json",
@@ -8,15 +8,7 @@ export const CONFIG = {
     WORK_DIR: "/cache/fontcraft/workspace",
     STORAGE_ROOT: "Start_At_Volume_List",
     MOD_BIN: `${MODULE_PATH}/binaries`,
-    LOCAL_TEMPLATE: "/cache/Template/template.zip",
-    SYSTEM_FONTS: [
-        "Roboto-Regular.ttf",
-        "DroidSansMono.ttf",
-        "NotoSerif-Regular.ttf",
-        "NotoSerif-Bold.ttf",
-        "NotoSerif-Italic.ttf",
-        "NotoSerif-BoldItalic.ttf"
-    ]
+    LOCAL_TEMPLATE: "/cache/Template/template.zip"
 };
 
 export const STATE = {
