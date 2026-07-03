@@ -10,7 +10,7 @@ class FontCraftUI {
         this.activeJsonUrl = CONFIG.DEFAULT_JSON_URL;
         this.activeRepoName = "RipperHybrid (Default)";
         this.currentCategory = 'Emoji';
-        this.themes = ['retro'];
+        this.themes = ['neumorphic'];
         this.queue = { Emoji: null, Fonts: null };
         this.pickerMode = 'font';
         this.binarySelectionType = null;
@@ -130,6 +130,12 @@ class FontCraftUI {
 
         const magiskContainer = document.querySelector('.magisk-btn .preset-icon');
         if (magiskContainer) magiskContainer.innerHTML = StylizeTextIcons.getMagiskIcon();
+
+        const scrollTopFabIcon = document.getElementById('scrollTopFabIcon');
+        if(scrollTopFabIcon) scrollTopFabIcon.innerHTML = StylizeTextIcons.getScrollTopIcon();
+
+        const rebootFabIcon = document.getElementById('rebootFabIcon');
+        if(rebootFabIcon) rebootFabIcon.innerHTML = StylizeTextIcons.getRebootIcon();
     }
 
     injectSettingsUI() {
@@ -141,8 +147,8 @@ class FontCraftUI {
             container.className = 'binary-selector';
             container.style.marginTop = '10px';
             container.innerHTML = `<label>Installation Command Arguments</label><div class="input-row"><input type="text" id="installArgsInput" class="settings-input" value="module install" placeholder="e.g. module install"></div><p style="font-size:0.65em; color:var(--text2); margin-top:4px">Full command: <span style="font-family:monospace">\${STATE.ROOT_CMD} <span id="cmdPreview">module install</span> "zip"</span></p>`;
-            const presetBtns = parent.querySelector('.preset-buttons');
-            if (presetBtns) parent.insertBefore(container, presetBtns);
+            const presetBtns = parent.querySelector('.binary-selector-group');
+            if (presetBtns) parent.insertBefore(container, presetBtns.nextSibling);
             else parent.appendChild(container);
 
             const input = document.getElementById('installArgsInput');
@@ -232,23 +238,38 @@ class FontCraftUI {
         document.head.appendChild(style);
     }
 
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.innerText = str ?? '';
+        return div.innerHTML;
+    }
+
     openDebugConsole() {
         const modal = document.getElementById('debugModal');
         modal.classList.add('active');
         this.toggleBodyLock(true);
-        let log = '';
+        const outEl = document.getElementById('debugOutput');
+
         if (this.commandHistory.length === 0) {
-            log = 'No commands executed yet.';
-        } else {
-            log = this.commandHistory.map((entry, idx) =>
-                `[${idx + 1}] ${entry.time}\nCMD: ${entry.command}\n${entry.error ? `ERR: ${entry.error}` : `OUT: ${entry.output}`}\n`
-            ).join('\n-------------------\n');
+            outEl.innerHTML = `<div class="debug-empty">No commands executed yet.</div>`;
+            return;
         }
-        document.getElementById('debugOutput').innerText = log;
+
+        outEl.innerHTML = this.commandHistory.map((entry, idx) => `
+            <div class="debug-entry">
+                <div class="debug-entry-head"><span>#${idx + 1}</span><span>${entry.time}</span></div>
+                <div class="debug-cmd">${this.escapeHtml(entry.command)}</div>
+                <div class="${entry.error ? 'debug-err' : 'debug-out'}">${this.escapeHtml(entry.error || entry.output || '(empty)')}</div>
+            </div>
+        `).join('');
     }
 
     copyDebugLog() {
-        const text = document.getElementById('debugOutput').innerText;
+        const text = this.commandHistory.length === 0
+            ? 'No commands executed yet.'
+            : this.commandHistory.map((entry, idx) =>
+                `[${idx + 1}] ${entry.time}\nCMD: ${entry.command}\n${entry.error ? `ERR: ${entry.error}` : `OUT: ${entry.output}`}\n`
+            ).join('\n-------------------\n');
         navigator.clipboard.writeText(text).then(() => {
             this.showToast('Log copied to clipboard!', 'success');
         });
@@ -261,14 +282,20 @@ class FontCraftUI {
     }
 
     loadTheme() {
-        document.body.classList.add('retro-mode');
+        document.body.classList.add('neumorphic-mode');
     }
 
     toggleBodyLock(isLocked) {
-        if (isLocked) document.body.classList.add('modal-open');
-        else {
+        const fabWrapper = document.querySelector('.fab-wrapper');
+        if (isLocked) {
+            document.body.classList.add('modal-open');
+            if (fabWrapper) fabWrapper.classList.add('hidden-by-modal');
+        } else {
             const activeModals = document.querySelectorAll('.modal-overlay.active');
-            if (activeModals.length <= 1) document.body.classList.remove('modal-open');
+            if (activeModals.length <= 1) {
+                document.body.classList.remove('modal-open');
+                if (fabWrapper) fabWrapper.classList.remove('hidden-by-modal');
+            }
         }
     }
 
@@ -276,8 +303,16 @@ class FontCraftUI {
         document.getElementById('settingsBtn').addEventListener('click', () => this.openSettings());
         document.getElementById('settingsBtn').innerHTML = StylizeTextIcons.getSettingsIcon();
 
-        const rebootFabIcon = document.getElementById('rebootFabIcon');
-        if(rebootFabIcon) rebootFabIcon.innerHTML = StylizeTextIcons.getRebootIcon();
+        window.addEventListener('scroll', () => {
+            const scrollTopFab = document.getElementById('scrollTopFab');
+            if (scrollTopFab) {
+                if (window.scrollY > 300) {
+                    scrollTopFab.classList.remove('hidden');
+                } else {
+                    scrollTopFab.classList.add('hidden');
+                }
+            }
+        });
 
         document.querySelector('#installModal .close-modal').addEventListener('click', () => {
             const modal = document.getElementById('installModal');
@@ -332,6 +367,13 @@ class FontCraftUI {
                     setTimeout(() => triggerEl.closest('.settings-group').style.zIndex = '', 200);
                 }
             }
+        });
+    }
+
+    scrollToTop() {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
         });
     }
 
@@ -457,8 +499,8 @@ class FontCraftUI {
                 actionHtml = `<button class="install-btn" onclick="${btnAction}" style="${btnStyle}">${buttonText}</button>`;
             } else {
                 actionHtml = `<div style="display:flex; gap:6px; width:100%;">
-                    <button class="install-btn" onclick="${btnAction}" style="${btnStyle}; flex:1;">Storage</button>
-                    <button class="install-btn" onclick="window.fontUI.selectCurrentItem('${category}')" style="flex:1; background:var(--bg2);">Current</button>
+                        <button class="install-btn" onclick="${btnAction}" style="${btnStyle}; flex:1;">Storage</button>
+                        <button class="install-btn" onclick="window.fontUI.selectCurrentItem('${category}')" style="flex:1; background:var(--bg2);">Current</button>
                 </div>`;
             }
 
@@ -704,11 +746,11 @@ class FontCraftUI {
     }
 
     updateBuildUI() {
-        const emojiStatus    = document.getElementById('emojiStatus');
-        const fontStatus     = document.getElementById('fontStatus');
-        const emojiSlot      = document.getElementById('emojiSlot');
-        const fontSlot       = document.getElementById('fontSlot');
-        const flashBtn       = document.getElementById('flashBtn');
+        const emojiStatus   = document.getElementById('emojiStatus');
+        const fontStatus    = document.getElementById('fontStatus');
+        const emojiSlot    = document.getElementById('emojiSlot');
+        const fontSlot     = document.getElementById('fontSlot');
+        const flashBtn     = document.getElementById('flashBtn');
         const clearContainer = document.getElementById('clearContainer');
 
         const hasEmoji = this.queue.Emoji !== null;
@@ -966,6 +1008,9 @@ class FontCraftUI {
             STATE.ROOT_MANAGER = "magisk";
             STATE.INSTALL_ARGS = "--install-module";
         }
+        document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+        const activeBtn = document.querySelector(`.${preset}-btn`);
+        if (activeBtn) activeBtn.classList.add('active');
         this.updateSettingsUI();
         this.showToast(`Applied ${preset.toUpperCase()} preset`, 'success');
     }

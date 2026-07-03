@@ -1,135 +1,24 @@
-name: Reconfigure Fonts & Preview
+name: Build & Release
 
 on:
   push:
     branches:
       - Master
-    paths-ignore:
-      - "fonts.json"
-      - "Preview.md"
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  update-json:
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          persist-credentials: false
           fetch-depth: 0
-
-      - name: Remove Old Files
-        run: rm -f fonts.json Preview.md
-
-      - name: Set Up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
-      - name: Generate Metadata (JSON + MD)
-        shell: python
-        env:
-          GIT_REPO: ${{ github.repository }}
-          GIT_REF: ${{ github.ref_name }}
-        run: |
-          import os
-          import json
-          from urllib.parse import quote
-
-          repo = os.environ.get("GIT_REPO")
-          branch = os.environ.get("GIT_REF")
-          base_url = f"https://raw.githubusercontent.com/{repo}/{branch}"
-
-          repo_dir = os.getcwd()
-          output_json = os.path.join(repo_dir, "fonts.json")
-          output_md = os.path.join(repo_dir, "Preview.md")
-
-          data = {}
-          md_content = "## Emojis and Fonts Preview\n\n"
-
-          allowed_extensions = {".ttf", ".otf"}
-          categories = ["Emoji", "Fonts"]
-
-          for category in sorted(categories):
-              category_path = os.path.join(repo_dir, category)
-              if not os.path.isdir(category_path):
-                  continue
-              data[category] = {}
-              for folder in sorted(os.listdir(category_path), key=str.lower):
-                  folder_path = os.path.join(category_path, folder)
-                  if os.path.isdir(folder_path):
-                      scan_fonts = [
-                          f for f in sorted(os.listdir(folder_path), key=str.lower)
-                          if os.path.isfile(os.path.join(folder_path, f)) and f.endswith(tuple(allowed_extensions))
-                      ]
-                      files_list = []
-                      for f in scan_fonts:
-                          file_path = os.path.join(folder_path, f)
-                          file_size = os.path.getsize(file_path)
-                          raw_url = f"{base_url}/{quote(f'{category}/{folder}/{f}')}"
-                          files_list.append({
-                              "filename": f,
-                              "download_url": raw_url,
-                              "size_bytes": file_size
-                          })
-                      font_bases = {os.path.splitext(f)[0] for f in scan_fonts}
-                      font_bases_lower = {name.lower(): name for name in font_bases}
-                      raw_imgs = [
-                          f for f in sorted(os.listdir(folder_path), key=str.lower)
-                          if os.path.isfile(os.path.join(folder_path, f)) and f.endswith(".png")
-                      ]
-                      scan_imgs = []
-                      for img in raw_imgs:
-                          img_base = os.path.splitext(img)[0]
-                          if img_base in font_bases:
-                              scan_imgs.append(img)
-                          elif img_base.lower() in font_bases_lower:
-                              exact_expected_img = font_bases_lower[img_base.lower()] + ".png"
-                              if exact_expected_img in raw_imgs:
-                                  try:
-                                      os.remove(os.path.join(folder_path, img))
-                                  except Exception:
-                                      pass
-                                  continue
-                              else:
-                                  scan_imgs.append(img)
-                          else:
-                              scan_imgs.append(img)
-                      preview_url = None
-                      if scan_imgs:
-                          preview_url = f"{base_url}/{quote(f'{category}/{folder}/{scan_imgs[0]}')}"
-                          md_content += f"### {folder}\n"
-                          for img in scan_imgs:
-                              img_url = f"{base_url}/{quote(f'{category}/{folder}/{img}')}"
-                              md_content += f'- <img src="{img_url}" width="200px" alt="{folder}">\n'
-                          md_content += "\n"
-                      if files_list:
-                          data[category][folder] = {
-                              "preview": preview_url,
-                              "files": files_list
-                          }
-          with open(output_json, "w") as json_file:
-              json.dump(data, json_file, indent=2)
-          with open(output_md, "w") as md_file:
-              md_file.write(md_content)
-
-      - name: Commit and Push to GitHub
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add fonts.json Preview.md
-          if git diff --staged --quiet; then
-            echo "No changes detected. Skipping commit."
-          else
-            git commit -m "GitBot: Auto-update Font metadata & Preview [skip ci]"
-            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push to GitLab
         continue-on-error: true
@@ -139,17 +28,6 @@ jobs:
           git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@${{ env.TARGET_REPO }}
           git push gitlab HEAD:${{ github.ref_name }} --force
           git push gitlab --tags --force
-
-  release:
-    needs: update-json
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

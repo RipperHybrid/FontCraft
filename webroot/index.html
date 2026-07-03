@@ -76,9 +76,14 @@
 
 </div>
 
-<button id="rebootFab" class="fab-btn hidden" onclick="window.fontUI.promptReboot()" title="Reboot Device">
-    <span class="fab-icon" id="rebootFabIcon"></span>
-</button>
+<div class="fab-stack" id="fabStack">
+    <button id="scrollTopFab" class="fab-btn hidden" onclick="window.fontUI.scrollToTop()" title="Scroll to Top">
+        <span class="fab-icon" id="scrollTopFabIcon"></span>
+    </button>
+    <button id="rebootFab" class="fab-btn hidden" onclick="window.fontUI.promptReboot()" title="Reboot Device">
+        <span class="fab-icon" id="rebootFabIcon"></span>
+    </button>
+</div>
 
 <div id="installModal" class="modal-overlay">
     <div class="modal-box">
@@ -181,24 +186,28 @@
                 <div class="preset-container">
                     <button class="preset-card ksu-btn" onclick="window.fontUI.applyPreset('ksu')">
                         <div class="preset-icon"></div>
-                        <span class="preset-title">KernelSU Paths</span>
+                        <span class="preset-title">KernelSU</span>
                     </button>
                     <button class="preset-card apatch-btn" onclick="window.fontUI.applyPreset('apatch')">
                         <div class="preset-icon"></div>
-                        <span class="preset-title">APatch Paths</span>
+                        <span class="preset-title">APatch</span>
                     </button>
                     <button class="preset-card magisk-btn" onclick="window.fontUI.applyPreset('magisk')">
                         <div class="preset-icon"></div>
-                        <span class="preset-title">Magisk Paths</span>
+                        <span class="preset-title">Magisk</span>
                     </button>
                 </div>
-                <div class="binary-selector">
-                    <label>BusyBox Path</label>
-                    <div class="path-display" id="bbPathDisplay" onclick="window.fontUI.openBinaryPicker('busybox')">Detecting...</div>
-                </div>
-                <div class="binary-selector">
-                    <label>Installer (Root Cmd)</label>
-                    <div class="path-display" id="installerPathDisplay" onclick="window.fontUI.openBinaryPicker('installer')">Detecting...</div>
+                <div class="binary-selector-group">
+                    <div class="binary-row" onclick="window.fontUI.openBinaryPicker('busybox')">
+                        <span class="binary-row-label">BusyBox</span>
+                        <span class="binary-row-value" id="bbPathDisplay">Detecting...</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                    <div class="binary-row" onclick="window.fontUI.openBinaryPicker('installer')">
+                        <span class="binary-row-label">Installer</span>
+                        <span class="binary-row-value" id="installerPathDisplay">Detecting...</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
                 </div>
             </div>
             <div class="settings-group" style="text-align: center; margin-bottom: 4px;">
@@ -221,7 +230,7 @@
             </div>
         </div>
         <div class="modal-content terminal-wrapper">
-            <pre id="debugOutput" style="font-size: 0.68em; color: var(--text1);">Initializing...</pre>
+            <div id="debugOutput">Initializing...</div>
         </div>
     </div>
 </div>

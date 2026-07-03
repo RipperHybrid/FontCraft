@@ -186,7 +186,7 @@ export async function listFilesInPath(path) {
             const itemEl = this.createFileItemElement(vol.name, "volume", delay);
             itemEl.dataset.path = vol.path;
             listEl.appendChild(itemEl);
-            delay += 0.05;
+            delay += 0.12;
         });
         return;
     }
@@ -205,7 +205,7 @@ export async function listFilesInPath(path) {
                 upEl.dataset.target = CONFIG.STORAGE_ROOT;
             }
             listEl.appendChild(upEl);
-            delay += 0.03;
+            delay += 0.07;
         }
         items.forEach(item => {
             const isDirectory = item.endsWith('/');
@@ -213,7 +213,7 @@ export async function listFilesInPath(path) {
             if (name === "" || name === "." || name === "..") return;
             const itemEl = this.createFileItemElement(name, isDirectory ? 'dir' : 'file', delay);
             listEl.appendChild(itemEl);
-            delay += 0.03;
+            delay += 0.07;
         });
         if (items.length === 0) listEl.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-secondary)">Empty Folder</div>`;
     } catch (stderr) {

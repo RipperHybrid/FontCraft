@@ -201,7 +201,7 @@ select_mode() {
             download_tools
             rm -rf /cache/Template/ && mv "$MODPATH/Template" /cache/
             run_cli_selection "Emoji" "emoji"
-            modify_prop "description" "Applied $emoji font injection" "$MODPATH/module.prop"
+            modify_prop "description" "🎨 [Emoji: $emoji] Stylish fonts & emojis for a personalized experience" "$MODPATH/module.prop"
             ;;
         3)
             log "Selected Mode: CLI - Fonts"
@@ -209,7 +209,7 @@ select_mode() {
             download_tools
             rm -rf /cache/Template/ && mv "$MODPATH/Template" /cache/
             run_cli_selection "Fonts" "font"
-            modify_prop "description" "Applied $font font injection" "$MODPATH/module.prop"
+            modify_prop "description" "🎨 [Font: $font] Stylish fonts & emojis for a personalized experience" "$MODPATH/module.prop"
             ;;
         4)
             log "Selected Mode: CLI - Both"
@@ -222,7 +222,7 @@ select_mode() {
             log "Select An Emoji"
             run_cli_selection "Emoji" "emoji"
 
-            modify_prop "description" "Injected $font font and $emoji emoji support" "$MODPATH/module.prop"
+            modify_prop "description" "🎨 [Font: $font | Emoji: $emoji] Stylish fonts & emojis for a personalized experience" "$MODPATH/module.prop"
             ;;
         5)
             log "Exiting..."

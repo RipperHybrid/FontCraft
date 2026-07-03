@@ -56,8 +56,29 @@ export async function processAndFlash() {
         let emojiName = "";
 
         if (this.queue.Emoji) {
-            this.updateTerminal(`Copying Emoji: ${this.queue.Emoji.filename}`);
-            await this.ksuExec(`cp "${this.queue.Emoji.path}" "${moduleDir}/system/fonts/NotoColorEmoji.ttf"`);
+            this.updateTerminal(`Scanning and replacing native emoji fonts...`);
+
+            const emojiPath = this.queue.Emoji.path;
+            const targets = ["NotoColorEmoji.ttf", "SamsungColorEmoji.ttf", "LGColorEmoji.ttf", "HTCColorEmoji.ttf"];
+            let injected = false;
+
+            for (const target of targets) {
+                try {
+                    const check = await this.ksuExec(`if [ -f "/system/fonts/${target}" ]; then echo "exists"; fi`);
+                    if (check.includes("exists")) {
+                        await this.ksuExec(`cp "${emojiPath}" "${moduleDir}/system/fonts/${target}"`);
+                        this.updateTerminal(`Replaced: ${target}`);
+                        injected = true;
+                    }
+                } catch(e) {}
+            }
+
+            if (!injected) {
+                this.updateTerminal("Warning: No known native emojis found. Forcing default.");
+                await this.ksuExec(`cp "${emojiPath}" "${moduleDir}/system/fonts/NotoColorEmoji.ttf"`);
+                this.updateTerminal("Force installed as NotoColorEmoji.ttf");
+            }
+
             emojiName = this.queue.Emoji.filename.replace(/\.[^/.]+$/, "");
         }
 
@@ -68,15 +89,9 @@ export async function processAndFlash() {
             const rawFontName = this.queue.Fonts.filename.replace(/\.[^/.]+$/, "");
             fontName = rawFontName.replace(/[^a-zA-Z0-9-]/g, "_");
 
-            this.updateTerminal("\n--- Running Dynamic Injection ---");
-
-            const injectCmd = `sh -c ". '${moduleDir}/utils.sh' && dynamic_replace_default_family '${fontPath}' '${moduleDir}'"`;
-            const injectOutput = await this.ksuExec(injectCmd);
-
-            if (injectOutput && injectOutput.trim() !== "") {
-                this.updateTerminal(injectOutput.trim());
-            }
-            this.updateTerminal("--- Injection Complete ---\n");
+            this.updateTerminal("Targeting default AOSP Roboto...");
+            await this.ksuExec(`cp "${fontPath}" "${moduleDir}/system/fonts/Roboto-Regular.ttf"`);
+            this.updateTerminal("Note: Set device font to 'Default' in OS settings to see changes.");
         }
 
         this.updateTerminal("Generating Config Scripts...");
@@ -86,13 +101,13 @@ export async function processAndFlash() {
 
         if (fontName && emojiName) {
             uiPrintMsg = `Flashing ${fontName} & ${emojiName}`;
-            descMsg = `description=🔥 Injected ${fontName} font and ${emojiName} emoji support.`;
+            descMsg = `description=🎨 [Font: ${fontName} | Emoji: ${emojiName}] Stylish fonts & emojis for a personalized experience`;
         } else if (fontName) {
             uiPrintMsg = `Flashing ${fontName}`;
-            descMsg = `description=🔥 Applied ${fontName} font injection.`;
+            descMsg = `description=🎨 [Font: ${fontName}] Stylish fonts & emojis for a personalized experience`;
         } else if (emojiName) {
             uiPrintMsg = `Flashing ${emojiName}`;
-            descMsg = `description=🔥 Applied ${emojiName} emoji support.`;
+            descMsg = `description=🎨 [Emoji: ${emojiName}] Stylish fonts & emojis for a personalized experience`;
         }
 
         const customizeScript = `#!/sbin/sh\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print "   FontCraft Module Builder       "\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print " "\nui_print "- ${uiPrintMsg}"\nsleep 2\nui_print " "\nif [ -d "$MODPATH/binaries" ]; then\n    chmod +x "$MODPATH"/binaries/*\n    ui_print "- ✅ Set execute permissions for all binaries."\n    ui_print " "\nfi\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print " "`;

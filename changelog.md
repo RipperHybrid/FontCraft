@@ -1,13 +1,11 @@
-# FontCraft v7.1
+# FontCraft v7.2
 
-### ⚙️ Core Backend & Shell Upgrades
+### 📦 Asset Library Migration
+- **Dedicated FontLib Repository:** Extracted all font binaries, emojis, and preview images out of the main repository. All assets are now hosted in a dedicated `RipperHybrid/FontLib` repository, drastically reducing FontCraft's core module size and making asset updates independent of module updates.
 
-* **Pristine XML Backups:** Engineered a bulletproof backup system (`/data/adb/FontCraft_Backup`) that securely extracts and stores your OEM `fonts.xml` and `font_fallback.xml` before patching. This completely eliminates recursive update bugs and dirty flash corruption.
-* **Precision AWK Parsing:** Fixed a greedy regex bug in the XML scanner, ensuring flawlessly accurate dynamic font detection across all Android variants without wiping essential configuration lines.
-* **Native Port Scanning:** Upgraded the WebUI port generator to directly scan the kernel's routing table (`/proc/net/tcp` and `tcp6`) in pure Hexadecimal. This removes reliance on the often-missing `netstat` binary and guarantees zero port collisions.
-* **Sanitized Fallbacks:** Stripped out the bloated 8-file AOSP doomsday fallback. The script now cleanly and smartly targets only `Roboto-Regular.ttf` when flying blind, keeping your `/system/fonts` directory lightweight and strictly consistent.
+### ⚙️ Engine Simplification
+- **XML Injection Removed:** Completely ripped out the complex and experimental XML patching system. The engine now relies strictly on a pure, direct-replacement method—targeting the default AOSP `Roboto-Regular.ttf` and native Android emoji fonts for guaranteed system stability and zero bootloops.
 
-### 🎨 WebUI & Frontend Parity
-
-* **Unified Injection Engine:** Gutted the massive, redundant inline `awk` patching scripts from `flasher.js`. The WebUI now natively invokes `utils.sh` directly from the workspace, achieving 100% execution parity with the CLI installer.
-* **Dynamic Font Tracking:** Removed the hardcoded `SYSTEM_FONTS` array from `config.js`. The WebUI's current item selector now dynamically maps the live module directory (`/data/adb/modules`) to actively detect exactly which fonts are currently installed.
+### 🎨 WebUI UI/UX Tweaks
+- **Neumorphic Redesign:** Updated the visual theme to a clean Neumorphic aesthetic. Anchored the top header so it no longer floats, and added a Scroll-to-Top FAB for better navigation in long lists.
+- **Improved FAB Behavior:** Added a Reboot FAB and a Scroll-to-Top button that automatically hide when modals or file pickers are active to prevent UI overlap.
