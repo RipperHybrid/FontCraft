@@ -204,196 +204,6 @@ get_prop() {
     printf '%s' "$value"
 }
 
-inject_font_xml() {
-    local font_file="$1"
-    local family="$2"
-    local modpath="$3"
-
-    local dest_dir="$modpath/system/etc"
-    local backup_dir="/data/adb/FontCraft_Backup"
-    local fallback_src="/system/etc/font_fallback.xml"
-    local fonts_src="/system/etc/fonts.xml"
-
-    [ -f "$backup_dir/Original_font_fallback.xml" ] && fallback_src="$backup_dir/Original_font_fallback.xml"
-    [ -f "$backup_dir/Original_fonts.xml" ] && fonts_src="$backup_dir/Original_fonts.xml"
-
-    local fallback_dest="$dest_dir/font_fallback.xml"
-    local fonts_dest="$dest_dir/fonts.xml"
-
-    log "Injecting XML entries for: $font_file (family: $family)"
-    mkdir -p "$dest_dir"
-
-    if [ -f "$fallback_src" ]; then
-        cp "$fallback_src" "$fallback_dest" || { log "Error: Failed to copy font_fallback.xml"; return 1; }
-
-        local ss_block="  <family name=\"${family}\">
-    <font weight=\"400\" style=\"normal\">${font_file}</font>
-  </family>"
-
-        local sc_block="  <family name=\"sans-serif-condensed\">
-    <font weight=\"400\" style=\"normal\">${font_file}</font>
-  </family>"
-
-        awk -v block="$ss_block" -v family="$family" '
-            $0 ~ ("<family name=\"" family "\">") { skip=1; print block; next }
-            skip && /<\/family>/ { skip=0; next }
-            skip { next }
-            { print }
-        ' "$fallback_dest" > "$fallback_dest.tmp" && mv "$fallback_dest.tmp" "$fallback_dest"
-
-        awk -v block="$sc_block" '
-            $0 ~ ("<family name=\"sans-serif-condensed\">") { skip=1; print block; next }
-            skip && /<\/family>/ { skip=0; next }
-            skip { next }
-            { print }
-        ' "$fallback_dest" > "$fallback_dest.tmp" && mv "$fallback_dest.tmp" "$fallback_dest"
-
-        log "Patched font_fallback.xml"
-    else
-        log "Warning: font_fallback.xml not found, skipping"
-    fi
-
-    if [ -f "$fonts_src" ]; then
-        cp "$fonts_src" "$fonts_dest" || { log "Error: Failed to copy fonts.xml"; return 1; }
-
-        local fs_block="    <family name=\"${family}\">
-        <font weight=\"100\" style=\"normal\">${font_file}</font>
-        <font weight=\"200\" style=\"normal\">${font_file}</font>
-        <font weight=\"300\" style=\"normal\">${font_file}</font>
-        <font weight=\"400\" style=\"normal\">${font_file}</font>
-        <font weight=\"500\" style=\"normal\">${font_file}</font>
-        <font weight=\"600\" style=\"normal\">${font_file}</font>
-        <font weight=\"700\" style=\"normal\">${font_file}</font>
-        <font weight=\"800\" style=\"normal\">${font_file}</font>
-        <font weight=\"900\" style=\"normal\">${font_file}</font>
-        <font weight=\"100\" style=\"italic\">${font_file}</font>
-        <font weight=\"200\" style=\"italic\">${font_file}</font>
-        <font weight=\"300\" style=\"italic\">${font_file}</font>
-        <font weight=\"400\" style=\"italic\">${font_file}</font>
-        <font weight=\"500\" style=\"italic\">${font_file}</font>
-        <font weight=\"600\" style=\"italic\">${font_file}</font>
-        <font weight=\"700\" style=\"italic\">${font_file}</font>
-        <font weight=\"800\" style=\"italic\">${font_file}</font>
-        <font weight=\"900\" style=\"italic\">${font_file}</font>
-    </family>"
-
-        awk -v block="$fs_block" -v family="$family" '
-            $0 ~ ("<family name=\"" family "\">") { skip=1; print block; next }
-            skip && /<\/family>/ { skip=0; next }
-            skip { next }
-            { print }
-        ' "$fonts_dest" > "$fonts_dest.tmp" && mv "$fonts_dest.tmp" "$fonts_dest"
-
-        log "Patched fonts.xml"
-    else
-        log "Warning: fonts.xml not found, skipping"
-    fi
-
-    log "XML injection complete"
-}
-
-dynamic_replace_default_family() {
-    local ttf_src="$1"
-    local modpath="$2"
-    local backup_dir="/data/adb/FontCraft_Backup"
-    local system_fonts_xml="/system/etc/fonts.xml"
-    local system_fallback_xml="/system/etc/font_fallback.xml"
-    local backup_fonts_xml="$backup_dir/Original_fonts.xml"
-    local backup_fallback_xml="$backup_dir/Original_font_fallback.xml"
-    local dest_path="$modpath/system/fonts"
-    local fonts_xml=""
-
-    DEFAULT_TTF=""
-    DEFAULT_FAMILY=""
-
-    mkdir -p "$dest_path"
-    mkdir -p "$backup_dir"
-
-    if [ -f "$system_fonts_xml" ] && [ ! -f "$backup_fonts_xml" ]; then
-        cp "$system_fonts_xml" "$backup_fonts_xml"
-        log "Backed up fonts.xml"
-    fi
-
-    if [ -f "$system_fallback_xml" ] && [ ! -f "$backup_fallback_xml" ]; then
-        cp "$system_fallback_xml" "$backup_fallback_xml"
-        log "Backed up font_fallback.xml"
-    fi
-
-    if [ -f "$backup_fonts_xml" ]; then
-        fonts_xml="$backup_fonts_xml"
-        log "Using backed up fonts.xml as source"
-    elif [ -f "$system_fonts_xml" ]; then
-        fonts_xml="$system_fonts_xml"
-        log "Using system fonts.xml as source"
-    fi
-
-    if [ -z "$fonts_xml" ]; then
-        log "No fonts.xml available, falling back to Roboto-Regular.ttf"
-        DEFAULT_FAMILY="sans-serif"
-        DEFAULT_TTF="Roboto-Regular.ttf"
-        DETECTED_FILES="Roboto-Regular.ttf"
-    else
-        DEFAULT_FAMILY=$(grep -m 1 'family name="' "$fonts_xml" | sed 's/.*name="\([^"]*\)".*/\1/')
-        [ -z "$DEFAULT_FAMILY" ] && DEFAULT_FAMILY="sans-serif"
-        log "Detected font family: $DEFAULT_FAMILY"
-
-        DETECTED_FILES=$(awk -v family="$DEFAULT_FAMILY" '
-            $0 ~ ("<family name=\"" family "\">") { in_family=1; next }
-            in_family && /<\/family>/ { in_family=0; next }
-            in_family && /<font / {
-                line=$0
-                sub(/.*<font[^>]*>/, "", line)
-                sub(/<\/font>.*/, "", line)
-                gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
-                if (line != "") print line
-            }
-        ' "$fonts_xml" | sort -u)
-
-        if [ -z "$DETECTED_FILES" ]; then
-            log "No TTFs detected in family $DEFAULT_FAMILY, falling back to Roboto-Regular.ttf"
-            DETECTED_FILES="Roboto-Regular.ttf"
-        fi
-
-        DEFAULT_TTF=$(awk -v family="$DEFAULT_FAMILY" '
-            $0 ~ ("<family name=\"" family "\">") { in_family=1; next }
-            in_family && /<\/family>/ { in_family=0; next }
-            in_family && /weight="400"/ && /style="normal"/ {
-                line=$0
-                sub(/.*<font[^>]*>/, "", line)
-                sub(/<\/font>.*/, "", line)
-                gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
-                if (line != "") { print line; exit }
-            }
-        ' "$fonts_xml")
-
-        [ -z "$DEFAULT_TTF" ] && DEFAULT_TTF=$(echo "$DETECTED_FILES" | head -n 1)
-    fi
-
-    log "Primary TTF for XML patching: $DEFAULT_TTF"
-
-    local replaced=0
-    local skipped=0
-    for target_file in $DETECTED_FILES; do
-        if [ -f "/system/fonts/$target_file" ]; then
-            cp "$ttf_src" "$dest_path/$target_file" || {
-                log "Error: Failed to copy to $target_file"
-                exit 1
-            }
-            log "Substituted: $target_file"
-            replaced=$((replaced + 1))
-        else
-            log "Skipped: $target_file (not on this ROM)"
-            skipped=$((skipped + 1))
-        fi
-    done
-
-    log "Replaced: $replaced | Skipped: $skipped"
-
-    inject_font_xml "$DEFAULT_TTF" "$DEFAULT_FAMILY" "$modpath" || {
-        log "Warning: XML injection failed."
-    }
-}
-
 gms_cleaner() {
     FONT_DIR="/data/fonts"
     GMS_PKG="com.google.android.gms"
@@ -465,12 +275,31 @@ install_font() {
     mkdir -p "$dest_path"
 
     if [ "$font_name" = "Emoji" ]; then
-        log "Installing emoji font..."
-        cp "$font_path" "$dest_path/NotoColorEmoji.ttf" || {
-            log "Error: Failed to copy NotoColorEmoji.ttf."
-            exit 1
-        }
-        log "Installed as NotoColorEmoji.ttf"
+        log "Scanning and replacing native emoji fonts..."
+
+        local targets="NotoColorEmoji.ttf SamsungColorEmoji.ttf LGColorEmoji.ttf HTCColorEmoji.ttf"
+        local injected=false
+
+        for target in $targets; do
+            if [ -f "/system/fonts/$target" ]; then
+                cp "$font_path" "$dest_path/$target" || {
+                    log "Error: Failed to copy $target."
+                    exit 1
+                }
+                log "Replaced: $target"
+                injected=true
+            fi
+        done
+
+        if [ "$injected" = false ]; then
+            log "Warning: No known native emojis found. Forcing default."
+            cp "$font_path" "$dest_path/NotoColorEmoji.ttf" || {
+                log "Error: Force install failed."
+                exit 1
+            }
+            log "Force installed as NotoColorEmoji.ttf"
+        fi
+
         emoji="$selected_item"
 
     elif [ "$font_name" = "Fonts" ]; then
@@ -481,7 +310,13 @@ install_font() {
             exit 1
         fi
 
-        dynamic_replace_default_family "$ttf_file" "$modpath"
+        log "Targeting default AOSP Roboto..."
+        cp "$ttf_file" "$dest_path/Roboto-Regular.ttf" || {
+            log "Error: Failed to install Roboto-Regular.ttf"
+            exit 1
+        }
+        log "Note: Set your device font to 'Default' in OS settings to see changes."
+
         font="$selected_item"
 
     else
@@ -595,7 +430,7 @@ get_working_mirror() {
     local mirrors_json=""
     local test_url=""
 
-    JSON_URL="https://raw.githubusercontent.com/RipperHybrid/FontCraft/Master/fonts.json"
+    JSON_URL="https://raw.githubusercontent.com/RipperHybrid/FontLib/Master/fonts.json"
 
     log "Fetching mirror list..."
 
@@ -699,32 +534,12 @@ run_cli_selection() {
 }
 
 check_existing_install() {
-    local installed_prop="/data/adb/modules/StylizeText/module.prop"
+    local backup_dir="/data/adb/FontCraft_Backup"
 
-    [ ! -f "$installed_prop" ] && return 0
-
-    local installed_code
-    local installed_version
-    installed_code=$(get_prop "versionCode" "$installed_prop")
-    installed_version=$(get_prop "version" "$installed_prop")
-
-    [ -z "$installed_code" ] && return 0
-
-    if [ "$installed_code" -le 16 ] 2>/dev/null; then
-        ui_print " "
-        ui_print "####################################"
-        ui_print "  !! INCOMPATIBLE VERSION FOUND !!"
-        ui_print "####################################"
-        ui_print " "
-        ui_print "  This update includes a new backup"
-        ui_print "  and XML patching system that is"
-        ui_print "  not compatible with your current"
-        ui_print "  installation."
-        ui_print " "
-        ui_print "  1. Uninstall FontCraft completely"
-        ui_print "  2. Reboot your device"
-        ui_print "  3. Flash this zip again"
-        ui_print " "
-        abort "Aborting: Uninstall $installed_version first."
+    if [ -d "$backup_dir" ]; then
+        log "Legacy XML backup directory detected. Purging..."
+        ui_print "- Cleaning up legacy XML backups..."
+        rm -rf "$backup_dir"
+        log "Purge complete."
     fi
 }
