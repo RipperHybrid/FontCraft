@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=overlays-content">
     <title>FontCraft</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
@@ -151,6 +151,33 @@
         </div>
         <div class="modal-content" id="file-selector-list-wrapper">
             <div id="file-selector-list" class="file-list"></div>
+        </div>
+    </div>
+</div>
+
+<div id="previewModal" class="modal-overlay">
+    <div class="modal-box preview-box">
+        <div class="modal-header">
+            <h3 id="previewTitle">Preview</h3>
+            <button class="close-modal" onclick="window.fontUI.closePreviewModal()">&times;</button>
+        </div>
+        <div class="modal-content">
+            <div id="previewLoader" class="preview-loader">
+                <div class="spinner"></div>
+                <p>Reading font...</p>
+            </div>
+            <div id="previewEditor" class="preview-editor">
+                <div class="preview-size-row">
+                    <button class="preview-size-btn" data-size="16" onclick="window.fontUI.setPreviewSize(16)">16px</button>
+                    <button class="preview-size-btn active" data-size="22" onclick="window.fontUI.setPreviewSize(22)">22px</button>
+                    <button class="preview-size-btn" data-size="32" onclick="window.fontUI.setPreviewSize(32)">32px</button>
+                    <button class="preview-size-btn" data-size="48" onclick="window.fontUI.setPreviewSize(48)">48px</button>
+                </div>
+                <div class="preview-textarea-wrap">
+                    <div id="previewInput" spellcheck="false"></div>
+                </div>
+                <div class="preview-hint">Live preview of your font — no typing needed, this just shows how it renders.</div>
+            </div>
         </div>
     </div>
 </div>

@@ -188,3 +188,88 @@ export async function downloadViaBrowserBridge(url, destPath, ksuExecFn, progres
         if (progressCallback) progressCallback(receivedLength);
     }
 }
+
+export async function loggedFetch(url, options = {}, commandHistory = []) {
+    const method = options.method || 'GET';
+    const label = `[fetch] ${method} ${url}`;
+    const start = Date.now();
+    try {
+        const response = await fetch(url, options);
+        const ms = Date.now() - start;
+        commandHistory.push({
+            command: label,
+            output: `Status: ${response.status} ${response.statusText} (${ms}ms)`,
+            error: response.ok ? null : `HTTP ${response.status}`,
+            time: new Date().toLocaleString()
+        });
+        return response;
+    } catch (e) {
+        const ms = Date.now() - start;
+        commandHistory.push({
+            command: label,
+            output: "",
+            error: `${e.name}: ${e.message} (${ms}ms)`,
+            time: new Date().toLocaleString()
+        });
+        throw e;
+    }
+}
+
+export async function rootFetchText(url, ksuExecFn, bbPath) {
+    const cmd = `sh -c "${bbPath} wget --no-check-certificate -q -O - '${url}'"`;
+    return await ksuExecFn(cmd);
+}
+
+export async function rootCheckUrl(url, ksuExecFn, bbPath) {
+    const cmd = `sh -c "${bbPath} wget --no-check-certificate --spider -q '${url}'; echo \\$?"`;
+    const result = await ksuExecFn(cmd);
+    return result.trim() === "0";
+}
+
+export async function resilientFetchJson(url, ksuExecFn, bbPath, commandHistory = []) {
+    let browserError = null;
+    try {
+        const response = await loggedFetch(url, { cache: "no-store" }, commandHistory);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+    } catch (e) {
+        browserError = e.message;
+    }
+
+    commandHistory.push({
+        command: `[root-fallback] GET ${url}`,
+        output: "Browser fetch failed, retrying via root wget...",
+        error: null,
+        time: new Date().toLocaleString()
+    });
+
+    try {
+        const text = await rootFetchText(url, ksuExecFn, bbPath);
+        return JSON.parse(text);
+    } catch (e2) {
+        throw new Error(`Browser fetch failed (${browserError}), root fallback also failed (${e2.message})`);
+    }
+}
+
+export async function resilientCheckUrl(url, ksuExecFn, bbPath, commandHistory = []) {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const response = await loggedFetch(url, { method: 'HEAD', signal: controller.signal, cache: "no-store" }, commandHistory);
+        clearTimeout(timeoutId);
+        if (response.ok) return true;
+    } catch (e) {}
+
+    commandHistory.push({
+        command: `[root-fallback] HEAD ${url}`,
+        output: "Browser HEAD check failed, retrying via root wget...",
+        error: null,
+        time: new Date().toLocaleString()
+    });
+
+    try {
+        return await rootCheckUrl(url, ksuExecFn, bbPath);
+    } catch (e2) {
+        return false;
+    }
+}

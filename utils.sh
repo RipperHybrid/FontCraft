@@ -16,6 +16,8 @@ emoji=none
 jq="$MODPATH/binaries/jq"
 JSON_PATH="$TMPDIR/fonts.json"
 
+export HOST_APP=$(dumpsys window | grep -E 'mCurrentFocus' | cut -d '/' -f1 | sed 's/.* //g')
+
 log() {
     echo "- $1"
     echo "$(date '+%Y-%m-%d %I:%M:%S %p') - $1" >> "$logfont"
@@ -24,14 +26,49 @@ log() {
 chooseport() {
     [ "$1" ] && local delay=$1 || local delay=10
     local attempts=0
+    local is_locked=false
+
     while [ $attempts -lt 3 ]; do
         local count=0
         while true; do
+            if [ "$is_locked" = true ]; then
+                ui_print " "
+                ui_print "- Installer Locked [!] (App Switched)"
+                ui_print "- Press VOLUME DOWN to unlock..."
+
+                while true; do
+                    UNLOCK_EVENT=$(timeout "$delay" /system/bin/getevent -lqc 1 2>&1)
+                    if echo "$UNLOCK_EVENT" | grep -q 'KEY_VOLUMEDOWN *DOWN'; then
+                        CHECK_APP=$(dumpsys window | grep -E 'mCurrentFocus' | cut -d '/' -f1 | sed 's/.* //g')
+                        if [ "$CHECK_APP" = "$HOST_APP" ]; then
+                            ui_print "- Unlocked [✓]. Resuming..."
+                            ui_print " "
+                            is_locked=false
+                            sleep 0.2
+                            break
+                        fi
+                    fi
+                done
+                count=0
+                continue
+            fi
+
             EVENT_LINE=$(timeout "$delay" /system/bin/getevent -lqc 1 2>&1)
             count=$((count + 1))
-            echo "$EVENT_LINE" | grep -q 'ABS_MT_TRACKING_ID'  && { sleep 0.2; return 0; }
-            echo "$EVENT_LINE" | grep -q 'KEY_VOLUMEUP *DOWN'  && { sleep 0.2; return 1; }
-            echo "$EVENT_LINE" | grep -q 'KEY_VOLUMEDOWN *DOWN' && { sleep 0.2; return 2; }
+
+            if echo "$EVENT_LINE" | grep -q 'ABS_MT_TRACKING_ID' || echo "$EVENT_LINE" | grep -q 'KEY_VOLUMEUP *DOWN' || echo "$EVENT_LINE" | grep -q 'KEY_VOLUMEDOWN *DOWN'; then
+                CURRENT_APP=$(dumpsys window | grep -E 'mCurrentFocus' | cut -d '/' -f1 | sed 's/.* //g')
+
+                if [ "$CURRENT_APP" != "$HOST_APP" ]; then
+                    is_locked=true
+                    continue
+                fi
+
+                echo "$EVENT_LINE" | grep -q 'ABS_MT_TRACKING_ID'  && { sleep 0.2; return 0; }
+                echo "$EVENT_LINE" | grep -q 'KEY_VOLUMEUP *DOWN'  && { sleep 0.2; return 1; }
+                echo "$EVENT_LINE" | grep -q 'KEY_VOLUMEDOWN *DOWN' && { sleep 0.2; return 2; }
+            fi
+
             [ $count -gt 9 ] && break
             sleep 0.2
         done

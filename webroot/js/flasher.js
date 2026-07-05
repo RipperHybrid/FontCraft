@@ -165,6 +165,7 @@ export async function processAndFlash() {
         btn.disabled = false;
 
         this.queue = { Emoji: null, Fonts: null };
+        await this.checkUpdatePending();
         this.updateBuildUI();
         this.renderGrid(this.currentCategory);
 

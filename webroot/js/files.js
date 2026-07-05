@@ -30,12 +30,6 @@ export async function detectStorageVolumes() {
 }
 
 export async function openCustomFilePicker(category) {
-    if(this.pickerMode === 'font' && this.queue[category] !== null) {
-        const msg = `Already selected a ${category}. Clear it first!`;
-        showToast(msg, 'warning');
-        return Promise.reject(new Error(msg));
-    }
-
     const modal = document.getElementById('fileSelectorModal');
     const listEl = document.getElementById('file-selector-list');
 

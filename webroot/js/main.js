@@ -1,5 +1,5 @@
-import { CONFIG, STATE } from './config.js';
-import { ksuExec, wait, showToast, formatSize, checkInternet, cleanupWorkspace, downloadViaBrowserBridge } from './utils.js';
+import { CONFIG, STATE, MODULE_PATH } from './config.js';
+import { ksuExec, wait, showToast, formatSize, checkInternet, cleanupWorkspace, downloadViaBrowserBridge, resilientFetchJson, resilientCheckUrl } from './utils.js';
 import { processAndFlash } from './flasher.js';
 import { StylizeTextIcons } from './icons.js';
 import { detectStorageVolumes, openCustomFilePicker, closeCustomFilePicker, updateFileBrowserPath, createFileItemElement, listFilesInPath, handleFileBrowserClick, handleFilePathClick, handleFileBrowserBack } from './files.js';
@@ -23,6 +23,7 @@ class FontCraftUI {
 
         this.selectedMirrorValue = 'default';
         this.selectedMirrorName = 'Auto-Detect (Default)';
+        this.updatePending = false;
 
         this.detectStorageVolumes = detectStorageVolumes.bind(this);
         this.openCustomFilePicker = openCustomFilePicker.bind(this);
@@ -43,6 +44,32 @@ class FontCraftUI {
         showToast(message, type, duration);
     }
 
+    promptUserConfirmation(titleText, descText) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('confirmationModal');
+            const title = document.getElementById('confTitle');
+            const desc = document.getElementById('confDescription');
+            const yesBtn = document.getElementById('confYesBtn');
+            const noBtn = document.getElementById('confNoBtn');
+
+            title.innerText = titleText;
+            desc.innerHTML = descText;
+
+            modal.classList.add('active');
+            this.toggleBodyLock(true);
+
+            const cleanup = () => {
+                modal.classList.remove('active');
+                this.toggleBodyLock(false);
+                yesBtn.onclick = null;
+                noBtn.onclick = null;
+            };
+
+            yesBtn.onclick = () => { cleanup(); resolve(true); };
+            noBtn.onclick = () => { cleanup(); resolve(false); };
+        });
+    }
+
     ksuExec(command) {
         return ksuExec(command, this.commandHistory);
     }
@@ -61,17 +88,35 @@ class FontCraftUI {
             await cleanupWorkspace(this.ksuExec.bind(this), CONFIG.WORK_DIR);
         } catch (e) {}
 
+        await this.checkUpdatePending();
         this.populateMirrorsDropdown();
         this.fetchLibrary();
         this.updateBuildUI();
+    }
+
+    async checkUpdatePending() {
+        try {
+            const result = await this.ksuExec(`if [ -f "/data/adb/modules/StylizeText/update" ]; then echo "yes"; fi`);
+            this.updatePending = result.includes("yes");
+        } catch (e) {
+            this.updatePending = false;
+        }
+    }
+
+    async getMirrorsData() {
+        if (this._mirrorsData) return this._mirrorsData;
+        if (this._mirrorsPromise) return this._mirrorsPromise;
+        this._mirrorsPromise = resilientFetchJson(CONFIG.MIRRORS_URL, this.ksuExec.bind(this), STATE.BB, this.commandHistory)
+            .then(data => { this._mirrorsData = data; return data; })
+            .finally(() => { this._mirrorsPromise = null; });
+        return this._mirrorsPromise;
     }
 
     async populateMirrorsDropdown() {
         const wrapper = document.getElementById('mirrorSelectWrapper');
         if (!wrapper || wrapper.dataset.loaded === 'true') return;
         try {
-            const response = await fetch(CONFIG.MIRRORS_URL, { cache: "no-store" });
-            const data = await response.json();
+            const data = await this.getMirrorsData();
             if (data.mirrors && Array.isArray(data.mirrors)) {
                 const optionsContainer = document.getElementById('mirrorSelectOptions');
                 const customOpt = optionsContainer.querySelector('[data-value="custom"]');
@@ -86,9 +131,7 @@ class FontCraftUI {
                 this.bindCustomSelectOptions();
                 this.updateSettingsUI();
             }
-        } catch (e) {
-            console.error("Failed to load mirrors for dropdown", e);
-        }
+        } catch (e) {}
     }
 
     bindCustomSelectOptions() {
@@ -166,7 +209,7 @@ class FontCraftUI {
         } catch (e) {}
 
         try {
-            const apdCheck = await this.ksuExec("if [ -d '/data/adb/apd' ]; then echo 'exists'; fi");
+            const apdCheck = await this.ksuExec("if [ -f '/data/adb/apd' ] || [ -d '/data/adb/ap/bin' ]; then echo 'exists'; fi");
             if (apdCheck.includes('exists')) { this.applyPreset('apatch'); return; }
         } catch (e) {}
 
@@ -333,6 +376,9 @@ class FontCraftUI {
         document.getElementById('fileSelectorModal').addEventListener('click', (e) => {
             if (e.target.id === 'fileSelectorModal') this.closeCustomFilePicker();
         });
+        document.getElementById('previewModal').addEventListener('click', (e) => {
+            if (e.target.id === 'previewModal') this.closePreviewModal();
+        });
         document.getElementById('file-selector-back').innerHTML = StylizeTextIcons.getBackIcon();
 
         this.bindCustomSelectOptions();
@@ -397,9 +443,7 @@ class FontCraftUI {
         const repoDisplay = document.getElementById('repo-source');
         if (repoDisplay) repoDisplay.innerText = "Checking Mirrors...";
         try {
-            const response = await fetch(CONFIG.MIRRORS_URL, { cache: "no-store" });
-            if (!response.ok) throw new Error("Failed to fetch mirrors.json");
-            const data = await response.json();
+            const data = await this.getMirrorsData();
             if (!data.mirrors || !Array.isArray(data.mirrors) || data.mirrors.length === 0) {
                 this.activeRepoName = "RipperHybrid (Fallback)";
                 this.updateRepoDisplay();
@@ -409,17 +453,12 @@ class FontCraftUI {
                 const mirror = data.mirrors[i];
                 if (loader && loader.style.display !== 'none') loader.querySelector('p').innerText = `Testing: ${mirror.repo}...`;
                 if (repoDisplay) repoDisplay.innerText = `Testing: ${mirror.repo}`;
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 10000);
-                    const testResp = await fetch(mirror.url, { method: 'HEAD', signal: controller.signal, cache: "no-store" });
-                    clearTimeout(timeoutId);
-                    if (testResp.ok) {
-                        this.activeRepoName = mirror.repo;
-                        this.updateRepoDisplay();
-                        return mirror.url;
-                    } else throw new Error("Fetch failed");
-                } catch (err) {}
+                const ok = await resilientCheckUrl(mirror.url, this.ksuExec.bind(this), STATE.BB, this.commandHistory);
+                if (ok) {
+                    this.activeRepoName = mirror.repo;
+                    this.updateRepoDisplay();
+                    return mirror.url;
+                }
             }
         } catch (e) {
             this.showToast("Error fetching mirror list", 'error');
@@ -447,9 +486,7 @@ class FontCraftUI {
 
             loader.querySelector('p').innerText = "Loading Fonts...";
 
-            const response = await fetch(this.activeJsonUrl);
-            if (!response.ok) throw new Error("Failed to fetch JSON");
-            this.data = await response.json();
+            this.data = await resilientFetchJson(this.activeJsonUrl, this.ksuExec.bind(this), STATE.BB, this.commandHistory);
 
             loader.style.display = 'none';
             this.renderGrid(this.currentCategory);
@@ -498,9 +535,12 @@ class FontCraftUI {
                 }
                 actionHtml = `<button class="install-btn" onclick="${btnAction}" style="${btnStyle}">${buttonText}</button>`;
             } else {
+                const currentBtnHtml = this.updatePending
+                    ? ''
+                    : `<button class="install-btn" onclick="window.fontUI.selectCurrentItem('${category}')" style="flex:1; background:var(--bg2);">Current</button>`;
                 actionHtml = `<div style="display:flex; gap:6px; width:100%;">
                         <button class="install-btn" onclick="${btnAction}" style="${btnStyle}; flex:1;">Storage</button>
-                        <button class="install-btn" onclick="window.fontUI.selectCurrentItem('${category}')" style="flex:1; background:var(--bg2);">Current</button>
+                        ${currentBtnHtml}
                 </div>`;
             }
 
@@ -545,10 +585,18 @@ class FontCraftUI {
         });
     }
 
-    openInstallModal(category, folderName) {
+    async openInstallModal(category, folderName) {
         if (this.queue[category] !== null) {
             this.showToast(`Already selected a ${category}. Clear it first!`, 'warning');
-            return;
+            const clearIt = await this.promptUserConfirmation(
+                "Clear Selection",
+                `You already have a ${category} selected. Do you want to clear it and select a new one?`
+            );
+            if (clearIt) {
+                await this.clearQueueItem(category);
+            } else {
+                return;
+            }
         }
         const itemData = this.data[category][folderName];
         const modal = document.getElementById('installModal');
@@ -756,8 +804,10 @@ class FontCraftUI {
         const hasEmoji = this.queue.Emoji !== null;
         const hasFont  = this.queue.Fonts  !== null;
 
+        const eyeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-left:4px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+
         if (hasEmoji) {
-            emojiStatus.innerText = this.queue.Emoji.filename.replace(/\.[^/.]+$/, "");
+            emojiStatus.innerHTML = `<span style="vertical-align:middle">${this.queue.Emoji.filename.replace(/\.[^/.]+$/, "")}</span>`;
             emojiSlot.classList.add('active');
         } else {
             emojiStatus.innerText = 'None';
@@ -765,7 +815,7 @@ class FontCraftUI {
         }
 
         if (hasFont) {
-            fontStatus.innerText = this.queue.Fonts.filename.replace(/\.[^/.]+$/, "");
+            fontStatus.innerHTML = `<span style="vertical-align:middle">${this.queue.Fonts.filename.replace(/\.[^/.]+$/, "")}</span><span style="cursor:pointer; color:var(--cyan); display:inline-block; padding:4px;" onclick="window.fontUI.openPreviewModal('Fonts')" title="Live Preview">${eyeIcon}</span>`;
             fontSlot.classList.add('active');
         } else {
             fontStatus.innerText = 'None';
@@ -816,7 +866,15 @@ class FontCraftUI {
     async selectAndAddCustomFont(category) {
         if (this.queue[category] !== null) {
             this.showToast(`Already selected a ${category}. Clear it first!`, 'warning');
-            return;
+            const clearIt = await this.promptUserConfirmation(
+                "Clear Selection",
+                `You already have a ${category} selected. Do you want to clear it and select a new one?`
+            );
+            if (clearIt) {
+                await this.clearQueueItem(category);
+            } else {
+                return;
+            }
         }
         try {
             this.showToast("Loading storage...", "info", 1500);
@@ -845,18 +903,20 @@ class FontCraftUI {
     async selectCurrentItem(category) {
         if (this.queue[category] !== null) {
             this.showToast(`Already selected a ${category}. Clear it first!`, 'warning');
-            return;
+            const clearIt = await this.promptUserConfirmation(
+                "Clear Selection",
+                `You already have a ${category} selected. Do you want to clear it and select a new one?`
+            );
+            if (clearIt) {
+                await this.clearQueueItem(category);
+            } else {
+                return;
+            }
         }
 
-        let modPath = `/data/adb/modules/StylizeText`;
+        if (this.updatePending) return;
 
-        try {
-            const checkUpdate = await this.ksuExec(`if [ -f "${modPath}/update" ]; then echo "yes"; fi`);
-            if (checkUpdate.includes("yes")) {
-                modPath = `/data/adb/modules_update/StylizeText`;
-            }
-        } catch(e) {}
-
+        const modPath = `/data/adb/modules/StylizeText`;
         let targetPath = "";
 
         if (category === 'Fonts') {
@@ -885,11 +945,11 @@ class FontCraftUI {
             const descStr = propDesc.trim();
 
             if (category === 'Fonts') {
-                const match = descStr.match(/(?:Injected|Applied) (.*?) font/);
-                if (match && match[1]) itemName = match[1];
+                const match = descStr.match(/\bFont:\s*([^|\]]+)/);
+                if (match && match[1]) itemName = match[1].trim();
             } else if (category === 'Emoji') {
-                const match = descStr.match(/(?:and|Applied) (.*?) emoji/);
-                if (match && match[1]) itemName = match[1];
+                const match = descStr.match(/\bEmoji:\s*([^|\]]+)/);
+                if (match && match[1]) itemName = match[1].trim();
             }
         } catch (e) {}
 
@@ -949,10 +1009,7 @@ class FontCraftUI {
 
             if (!(await checkInternet(this.ksuExec.bind(this), STATE.ROOT_BIN, STATE.BB))) throw new Error("No internet connection");
 
-            const response = await fetch(targetUrl);
-            const jsonStr = await response.text();
-            let data;
-            try { data = JSON.parse(jsonStr); } catch (e) { throw new Error("Invalid JSON structure"); }
+            const data = await resilientFetchJson(targetUrl, this.ksuExec.bind(this), STATE.BB, this.commandHistory);
             if (!data.Fonts && !data.Emoji) throw new Error("JSON missing Fonts or Emoji keys");
 
             this.activeJsonUrl = targetUrl;
@@ -996,9 +1053,9 @@ class FontCraftUI {
             STATE.ROOT_MANAGER = "ksud";
             STATE.INSTALL_ARGS = "module install";
         } else if (preset === 'apatch') {
-            STATE.ROOT_BIN = "/data/adb/apd";
+            STATE.ROOT_BIN = "/data/adb/ap/bin";
             STATE.BB = `${STATE.ROOT_BIN}/busybox`;
-            STATE.ROOT_CMD = `${STATE.ROOT_BIN}/apd`;
+            STATE.ROOT_CMD = "/data/adb/apd";
             STATE.ROOT_MANAGER = "apd";
             STATE.INSTALL_ARGS = "module install";
         } else if (preset === 'magisk') {
@@ -1008,6 +1065,7 @@ class FontCraftUI {
             STATE.ROOT_MANAGER = "magisk";
             STATE.INSTALL_ARGS = "--install-module";
         }
+
         document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
         const activeBtn = document.querySelector(`.${preset}-btn`);
         if (activeBtn) activeBtn.classList.add('active');
@@ -1016,29 +1074,10 @@ class FontCraftUI {
     }
 
     async promptReboot() {
-        const userConfirmed = await new Promise((resolve) => {
-            const modal = document.getElementById('confirmationModal');
-            const title = document.getElementById('confTitle');
-            const desc = document.getElementById('confDescription');
-            const yesBtn = document.getElementById('confYesBtn');
-            const noBtn = document.getElementById('confNoBtn');
-
-            title.innerText = "Reboot Device";
-            desc.innerHTML = `Flash applied successfully. Do you want to reboot your device now to apply changes?`;
-
-            modal.classList.add('active');
-            this.toggleBodyLock(true);
-
-            const cleanup = () => {
-                modal.classList.remove('active');
-                this.toggleBodyLock(false);
-                yesBtn.onclick = null;
-                noBtn.onclick = null;
-            };
-
-            yesBtn.onclick = () => { cleanup(); resolve(true); };
-            noBtn.onclick = () => { cleanup(); resolve(false); };
-        });
+        const userConfirmed = await this.promptUserConfirmation(
+            "Reboot Device",
+            "Flash applied successfully. Do you want to reboot your device now to apply changes?"
+        );
 
         if (userConfirmed) {
             this.showToast("Rebooting device...", 'info');
@@ -1048,6 +1087,127 @@ class FontCraftUI {
                 this.showToast("Failed to reboot. Please reboot manually.", 'error');
             }
         }
+    }
+
+    async openPreviewModal(category) {
+        const item = this.queue[category];
+        if (!item) return;
+
+        const modal = document.getElementById('previewModal');
+        const loader = document.getElementById('previewLoader');
+        const editor = document.getElementById('previewEditor');
+        const input = document.getElementById('previewInput');
+        const title = document.getElementById('previewTitle');
+
+        title.innerText = item.name.replace(/\.[^/.]+$/, "");
+        modal.classList.add('active');
+        this.toggleBodyLock(true);
+
+        editor.style.display = 'none';
+        loader.style.display = 'flex';
+        loader.innerHTML = `<div class="spinner"></div><p>Reading font...</p>`;
+
+        try {
+            const sizeCheckCmd = `sh -c "${STATE.BB} wc -c '${item.path}' | awk '{print \\$1}'"`;
+            const sizeOutput = await this.ksuExec(sizeCheckCmd);
+            const bytes = parseInt(sizeOutput.trim()) || 0;
+
+            if (bytes <= 0) throw new Error("Could not read font size");
+            if (bytes > 15 * 1024 * 1024) {
+                throw new Error(`Font too large for inline preview (${(bytes / 1048576).toFixed(1)} MB)`);
+            }
+
+            const CHUNK_SIZE = 2 * 1024 * 1024;
+            const totalChunks = Math.ceil(bytes / CHUNK_SIZE);
+
+            const p = loader.querySelector('p');
+            if (p) p.innerText = `Reading font... 0/${totalChunks} chunks`;
+
+            let completed = 0;
+            const chunkPromises = [];
+            for (let i = 0; i < totalChunks; i++) {
+                const skipBlocks = i;
+                const chunkCmd = `${STATE.BB} dd if="${item.path}" bs=${CHUNK_SIZE} skip=${skipBlocks} count=1 2>/dev/null | ${STATE.BB} base64 -w0`;
+                const promise = this.ksuExec(chunkCmd).then(result => {
+                    completed++;
+                    if (p) p.innerText = `Reading font... ${completed}/${totalChunks} chunks`;
+                    return { index: i, data: result.trim() };
+                });
+                chunkPromises.push(promise);
+            }
+
+            const results = await Promise.all(chunkPromises);
+            results.sort((a, b) => a.index - b.index);
+            const base64Data = results.map(r => r.data).join('');
+
+            if (!base64Data) throw new Error("Empty font data");
+
+            const byteChars = atob(base64Data);
+            const byteArray = new Uint8Array(byteChars.length);
+            for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
+
+            const blob = new Blob([byteArray], { type: 'font/opentype' });
+            this.revokePreviewBlobUrl();
+            this._previewBlobUrl = URL.createObjectURL(blob);
+
+            this.removePreviewStyleTag();
+            const styleTag = document.createElement('style');
+            styleTag.id = 'livePreviewFontStyle';
+            styleTag.innerHTML = `@font-face { font-family: 'LivePreviewFont'; src: url("${this._previewBlobUrl}") format('truetype'), url("${this._previewBlobUrl}") format('opentype'); }`;
+            document.head.appendChild(styleTag);
+
+            input.style.fontFamily = 'LivePreviewFont, sans-serif';
+
+            let loaded = false;
+            try {
+                await document.fonts.load('16px "LivePreviewFont"');
+                loaded = document.fonts.check('16px "LivePreviewFont"');
+            } catch (loadErr) {}
+
+            if (!loaded) {
+                this.showToast('Font failed to load — showing fallback', 'warning', 5000);
+            } else {
+                this.showToast('Custom font loaded', 'success', 2000);
+            }
+
+            input.textContent = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n0123456789 !@#$%^&*()';
+
+            loader.style.display = 'none';
+            editor.style.display = 'flex';
+        } catch (e) {
+            this.showToast(`Preview failed: ${e.message}`, "error", 5000);
+            this.closePreviewModal();
+        }
+    }
+
+    setPreviewSize(px) {
+        const input = document.getElementById('previewInput');
+        if (!input) return;
+        input.style.fontSize = `${px}px`;
+        document.querySelectorAll('.preview-size-btn').forEach(b => b.classList.toggle('active', b.dataset.size === String(px)));
+    }
+
+    removePreviewStyleTag() {
+        const existing = document.getElementById('livePreviewFontStyle');
+        if (existing) existing.remove();
+    }
+
+    revokePreviewBlobUrl() {
+        if (this._previewBlobUrl) {
+            URL.revokeObjectURL(this._previewBlobUrl);
+            this._previewBlobUrl = null;
+        }
+    }
+
+    closePreviewModal() {
+        document.getElementById('previewModal').classList.remove('active');
+        this.toggleBodyLock(false);
+        const input = document.getElementById('previewInput');
+        input.style.fontFamily = 'var(--font-mono)';
+        input.style.fontSize = '';
+        input.textContent = '';
+        this.removePreviewStyleTag();
+        this.revokePreviewBlobUrl();
     }
 }
 

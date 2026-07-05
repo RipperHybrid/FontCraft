@@ -6,14 +6,20 @@ both=false
 select_item() {
     ui_print "###########################"
     ui_print "- Select An Item"
-    items="$selection_list"
+    items="$selection_list,Exit"
     set -- $(echo "$items" | sed 's/,/ /g')
     count=$#
     pos=1
     while :; do
         i=1
         for item; do
-            [ $i -eq $pos ] && ui_print "   >[$item]<"
+            if [ $i -eq $pos ]; then
+                if [ "$item" = "Exit" ]; then
+                    ui_print "- Exit [x]"
+                else
+                    ui_print "- $item"
+                fi
+            fi
             i=$((i+1))
         done
         chooseport
@@ -33,9 +39,14 @@ select_item() {
         i=$((i+1))
     done
 
+    if [ "$selected_item" = "Exit" ]; then
+        log "Action cancelled by user. Exiting."
+        abort
+    fi
+
     if [ -z "$selected_item" ]; then
         log "Error: No item selected."
-        exit 1
+        abort
     fi
     log "Selected $selected_item $selection_type..."
     if [ "$selection_type" = "font" ]; then
@@ -44,7 +55,7 @@ select_item() {
         handle_selection "Emoji" "$selected_item"
     else
         log "Error: Invalid selection type."
-        exit 1
+        abort
     fi
 }
 
@@ -56,7 +67,7 @@ handle_selection() {
     extract_info "$JSON_PATH" "$category" "$selected_item"
     if [ $? -ne 0 ]; then
         log "Aborting: Could not get file list for $selected_item"
-        exit 1
+        abort
     fi
 
     if [ "$category" = "Fonts" ]; then
@@ -67,16 +78,17 @@ handle_selection() {
 
     if [ -z "$item_list" ]; then
         log "Error: Item list is empty!"
-        exit 1
+        abort
     fi
 
-    set -- $(echo "$item_list" | sed 's/,/ /g')
+    items="$item_list,Exit"
+    set -- $(echo "$items" | sed 's/,/ /g')
     count=$#
 
-    if [ "$count" -eq 0 ]; then
+    if [ "$count" -eq 1 ]; then
         log "Error: No files found!"
-        exit 1
-    elif [ "$count" -eq 1 ]; then
+        abort
+    elif [ "$count" -eq 2 ]; then
         selected_version="$1"
         log "Auto-selecting $category: $selected_version"
     else
@@ -87,7 +99,13 @@ handle_selection() {
         while :; do
             i=1
             for item; do
-                [ $i -eq $pos ] && ui_print "   >[$item]<"
+                if [ $i -eq $pos ]; then
+                    if [ "$item" = "Exit" ]; then
+                        ui_print "- Exit [x]"
+                    else
+                        ui_print "- $item"
+                    fi
+                fi
                 i=$((i+1))
             done
             chooseport
@@ -107,9 +125,14 @@ handle_selection() {
         done
     fi
 
+    if [ "$selected_version" = "Exit" ]; then
+        log "Action cancelled by user. Exiting."
+        abort
+    fi
+
     if [ -z "$selected_version" ]; then
         log "Error: No version selected!"
-        exit 1
+        abort
     fi
 
     log "Fetching download link and file size..."
@@ -122,7 +145,7 @@ handle_selection() {
 
     if [ -z "$download_url" ] || [ "$download_url" = "null" ]; then
         log "Error: Download URL not found in JSON!"
-        exit 1
+        abort
     fi
 
     if [ -n "$size_bytes" ] && [ "$size_bytes" != "null" ]; then
@@ -136,7 +159,7 @@ handle_selection() {
 
     if [ ! -f "$item_path" ]; then
         log "Error: $category download failed!"
-        exit 1
+        abort
     fi
     log "Installing $category: $selected_version"
     install_font "$category" "$item_path" "$MODPATH"
@@ -159,7 +182,7 @@ select_mode() {
     while :; do
         i=1
         for mode in $modes; do
-            [ $i -eq $pos ] && ui_print "   >[$i. $mode]< " || :
+            [ $i -eq $pos ] && ui_print "- $i. $mode" || :
             i=$((i+1))
         done
         chooseport
@@ -192,7 +215,7 @@ select_mode() {
                 su 2000 -c "cmd activity start -a android.intent.action.VIEW -d 'http://127.0.0.1:$LAUNCH_PORT/#$LAUNCH_TOKEN'" >/dev/null 2>&1
             else
                 log "WebUI failed to start! Please use CLI Mode."
-                exit 1
+                abort
             fi
             ;;
         2)
@@ -225,16 +248,11 @@ select_mode() {
             modify_prop "description" "🎨 [Font: $font | Emoji: $emoji] Stylish fonts & emojis for a personalized experience" "$MODPATH/module.prop"
             ;;
         5)
-            log "Exiting..."
+            log "Action cancelled by user. Exiting..."
             abort
-            ;;
-        *)
-            log "Invalid Selection, Aborting."
-            exit 1
             ;;
     esac
 }
-
 
 ui_print "####################################"
 ui_print "   >[Magisk & KernelSU Compatible]<"

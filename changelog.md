@@ -1,11 +1,19 @@
-# FontCraft v7.2
+# FontCraft v7.3
 
-### 📦 Asset Library Migration
-- **Dedicated FontLib Repository:** Extracted all font binaries, emojis, and preview images out of the main repository. All assets are now hosted in a dedicated `RipperHybrid/FontLib` repository, drastically reducing FontCraft's core module size and making asset updates independent of module updates.
+### 🛠 APatch Compatibility
 
-### ⚙️ Engine Simplification
-- **XML Injection Removed:** Completely ripped out the complex and experimental XML patching system. The engine now relies strictly on a pure, direct-replacement method—targeting the default AOSP `Roboto-Regular.ttf` and native Android emoji fonts for guaranteed system stability and zero bootloops.
+* **Path Correction (Issue #3):** Resolved connectivity and install failures by updating target directories from `/data/adb/apd/busybox/` to `/data/adb/ap/bin/busybox` and `/data/adb/apd`.
 
-### 🎨 WebUI UI/UX Tweaks
-- **Neumorphic Redesign:** Updated the visual theme to a clean Neumorphic aesthetic. Anchored the top header so it no longer floats, and added a Scroll-to-Top FAB for better navigation in long lists.
-- **Improved FAB Behavior:** Added a Reboot FAB and a Scroll-to-Top button that automatically hide when modals or file pickers are active to prevent UI overlap.
+### 🌐 WebUI Network Resilience
+
+* **Root Fallback:** Fetches now automatically retry via root `wget` if blocked by CORS or browser restrictions.
+* **Detailed Logging:** All network requests (mirrors, JSON, custom sources) now log to the Debug Console for visibility.
+* **Startup Optimization:** Consolidated `mirrors.json` fetching to a single request at launch.
+
+### 🔒 Installer Safety
+
+* **Input Lock:** Prevents accidental input during app switching. If you leave the root manager mid-install, the installer locks input until you return and press Volume Down to resume.
+
+### 🎛 CLI Menu
+
+* **Clean Exit:** Added an explicit **Exit** option to font/emoji and install-mode menus to prevent script errors.
