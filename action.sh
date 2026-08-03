@@ -36,7 +36,8 @@ while true; do
     log "=============================="
     log "1. Open WebUI"
     log "2. Clean GMS Fonts"
-    log "3. Exit"
+    log "3. Clean WebUI"
+    log "4. Exit"
     echo " "
     log "Controls:"
     log "  Vol+ = SELECT Option"
@@ -68,6 +69,17 @@ while true; do
     if key_check; then
         log "Selected: GMS Cleaner"
         gms_cleaner
+        exit 0
+    else
+         log "Skipped"
+    fi
+    log "------------------------------"
+
+    log "Clean WebUI"
+    log "(Kill stale server/watcher & wipe session)"
+    if key_check; then
+        log "Selected: WebUI Cleaner"
+        CLEANUP_WEBUI
         exit 0
     else
          log "Skipped"

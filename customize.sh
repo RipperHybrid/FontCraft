@@ -143,6 +143,9 @@ handle_selection() {
     size_bytes=$($jq -r --arg cat "$category" --arg key "$selected_item" --arg file "$selected_version" \
         '.[$cat][$key].files[] | select(.filename == $file) | .size_bytes' "$JSON_PATH")
 
+    sha256_val=$($jq -r --arg cat "$category" --arg key "$selected_item" --arg file "$selected_version" \
+        '.[$cat][$key].files[] | select(.filename == $file) | .sha256 // empty' "$JSON_PATH")
+
     if [ -z "$download_url" ] || [ "$download_url" = "null" ]; then
         log "Error: Download URL not found in JSON!"
         abort
@@ -155,14 +158,14 @@ handle_selection() {
     fi
 
     item_path="$TMPDIR/${selected_version}"
-    download_ef "$download_url" "$item_path" "$size_mb"
+    download_ef "$download_url" "$item_path" "$size_mb" "$sha256_val"
 
     if [ ! -f "$item_path" ]; then
         log "Error: $category download failed!"
         abort
     fi
     log "Installing $category: $selected_version"
-    install_font "$category" "$item_path" "$MODPATH"
+    install_font "$category" "$item_path" "$MODPATH" "$selected_item"
 }
 
 select_mode() {
@@ -224,7 +227,7 @@ select_mode() {
             download_tools
             rm -rf /cache/Template/ && mv "$MODPATH/Template" /cache/
             run_cli_selection "Emoji" "emoji"
-            modify_prop "description" "🎨 [Emoji: $emoji] Stylish fonts & emojis for a personalized experience" "$MODPATH/module.prop"
+            modify_prop -s "description" "🎨 [Emoji: $emoji] Stylish fonts & emojis for a personalized experience" "$MODPATH/module.prop"
             ;;
         3)
             log "Selected Mode: CLI - Fonts"
@@ -232,7 +235,7 @@ select_mode() {
             download_tools
             rm -rf /cache/Template/ && mv "$MODPATH/Template" /cache/
             run_cli_selection "Fonts" "font"
-            modify_prop "description" "🎨 [Font: $font] Stylish fonts & emojis for a personalized experience" "$MODPATH/module.prop"
+            modify_prop -s "description" "🎨 [Font: $font] Stylish fonts & emojis for a personalized experience" "$MODPATH/module.prop"
             ;;
         4)
             log "Selected Mode: CLI - Both"
@@ -245,7 +248,7 @@ select_mode() {
             log "Select An Emoji"
             run_cli_selection "Emoji" "emoji"
 
-            modify_prop "description" "🎨 [Font: $font | Emoji: $emoji] Stylish fonts & emojis for a personalized experience" "$MODPATH/module.prop"
+            modify_prop -s "description" "🎨 [Font: $font | Emoji: $emoji] Stylish fonts & emojis for a personalized experience" "$MODPATH/module.prop"
             ;;
         5)
             log "Action cancelled by user. Exiting..."
@@ -254,10 +257,8 @@ select_mode() {
     esac
 }
 
-ui_print "####################################"
-ui_print "   >[Magisk & KernelSU Compatible]<"
-ui_print "####################################"
 check_existing_install
+gms_cleaner
 setup_binaries
 ui_print "#############################################"
 ui_print "            Menu Navigation:                     "

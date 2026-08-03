@@ -1,3 +1,5 @@
+import { MODULE_PATH } from './config.js';
+
 export const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export function showToast(message, type = 'info', duration = 3000) {
@@ -48,6 +50,52 @@ async function getAuthToken() {
     return cachedToken;
 }
 
+function summarizeForHistory(command, output, error) {
+    const isBase64Transfer = /base64\s+-w0|base64\s*$|\|\s*base64/.test(command);
+    const isBinaryDump = /\bdd\s+if=/.test(command);
+
+    if ((isBase64Transfer || isBinaryDump) && output && output.length > 300) {
+        const approxBytes = Math.floor(output.length * 3 / 4);
+        return `[base64 chunk omitted — ${output.length.toLocaleString()} chars, ~${formatSize(approxBytes)}]`;
+    }
+
+    let text = output || '';
+
+    if (text.trim() === '') {
+        if (error) {
+            text = 'failed';
+        } else if (command.includes('rm -') || command.includes('rm ')) {
+            text = 'removed';
+        } else if (command.includes('mkdir ')) {
+            text = 'created';
+        } else if (command.includes('cp ')) {
+            text = 'copied';
+        } else if (command.includes('mv ')) {
+            text = 'moved';
+        } else if (command.includes('du -h') || command.includes('wc -c')) {
+            text = '0';
+        } else if (command.includes('>') || command.includes('>>')) {
+            text = 'written';
+        } else {
+            text = 'success';
+        }
+    } else if (!error) {
+        if (command.includes('getprop ro.product.model')) text = `Model: ${text.trim()}`;
+        else if (command.includes('getprop ro.build.version.release')) text = `Android: ${text.trim()}`;
+        else if (command.includes("grep '^version='")) text = `Version: ${text.trim()}`;
+        else if (command.includes("grep '^versionCode='")) text = `VersionCode: ${text.trim()}`;
+        else if (command.includes("ksud' -V")) text = `KSU Ver: ${text.trim()}`;
+        else if (command.includes("apd' -V")) text = `APatch Ver: ${text.trim()}`;
+        else if (command.includes("magisk' -V") || command.includes("magisk' -v")) text = `Magisk Ver: ${text.trim()}`;
+    }
+
+    if (text.length > 4000) {
+        return `${text.slice(0, 400)}\n...[truncated, ${text.length.toLocaleString()} chars total]`;
+    }
+
+    return text;
+}
+
 export function ksuExec(command, commandHistory = []) {
     if (typeof ksu !== 'undefined' && typeof ksu.exec === 'function') {
         return new Promise((resolve, reject) => {
@@ -57,10 +105,11 @@ export function ksuExec(command, commandHistory = []) {
                 delete window[callbackName];
 
                 if (commandHistory) {
+                    const error = errno !== 0 ? (stderr || `Error ${errno}`) : null;
                     commandHistory.push({
                         command,
-                        output: stdout,
-                        error: errno !== 0 ? (stderr || `Error ${errno}`) : null,
+                        output: summarizeForHistory(command, stdout, error),
+                        error,
                         time: new Date().toLocaleString()
                     });
                 }
@@ -94,10 +143,11 @@ export function ksuExec(command, commandHistory = []) {
             const data = await response.json();
 
             if (commandHistory) {
+                const error = data.code !== 0 ? (data.stderr || data.stdout || "Command failed") : null;
                 commandHistory.push({
                     command,
-                    output: data.stdout || "",
-                    error: data.code !== 0 ? (data.stderr || data.stdout || "Command failed") : null,
+                    output: summarizeForHistory(command, data.stdout || "", error),
+                    error,
                     time: new Date().toLocaleString()
                 });
             }
@@ -272,4 +322,40 @@ export async function resilientCheckUrl(url, ksuExecFn, bbPath, commandHistory =
     } catch (e2) {
         return false;
     }
+}
+
+export async function getDeviceInfo(ksuExecFn) {
+    const info = {};
+    try {
+        info.device = (await ksuExecFn(`getprop ro.product.model`)).trim() || "Unknown";
+    } catch (e) { info.device = "Unknown"; }
+
+    try {
+        info.android = (await ksuExecFn(`getprop ro.build.version.release`)).trim() || "Unknown";
+    } catch (e) { info.android = "Unknown"; }
+
+    try {
+        info.moduleVersion = (await ksuExecFn(`sh -c "grep '^version=' '${MODULE_PATH}/module.prop' | cut -d'=' -f2-"`)).trim() || "Unknown";
+    } catch (e) { info.moduleVersion = "Unknown"; }
+
+    try {
+        info.moduleVersionCode = (await ksuExecFn(`sh -c "grep '^versionCode=' '${MODULE_PATH}/module.prop' | cut -d'=' -f2-"`)).trim() || "Unknown";
+    } catch (e) { info.moduleVersionCode = "Unknown"; }
+
+    return info;
+}
+
+export async function getRootVersion(ksuExecFn, rootManager, rootCmd) {
+    try {
+        if (rootManager === 'ksud' || rootManager === 'apd') {
+            const v = await ksuExecFn(`sh -c "'${rootCmd}' -V"`);
+            return v.split('\n')[0].trim() || "Unknown";
+        }
+        if (rootManager === 'magisk') {
+            const name = await ksuExecFn(`sh -c "'${rootCmd}' -v"`);
+            const code = await ksuExecFn(`sh -c "'${rootCmd}' -V"`);
+            return `${name.split('\n')[0].trim()} (${code.split('\n')[0].trim()})`;
+        }
+    } catch (e) {}
+    return "Unknown";
 }

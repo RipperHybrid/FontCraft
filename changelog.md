@@ -1,19 +1,25 @@
-# FontCraft v7.3
+# FontCraft v7.4
 
-### 🛠 APatch Compatibility
+### 🔐 Download Integrity
 
-* **Path Correction (Issue #3):** Resolved connectivity and install failures by updating target directories from `/data/adb/apd/busybox/` to `/data/adb/ap/bin/busybox` and `/data/adb/apd`.
+* **SHA256 Verification:** WebUI and CLI now verify downloads against the JSON manifest's `sha256` value, auto-rejecting corrupted/tampered files. Verified items show a `SHA ✓` badge.
 
-### 🌐 WebUI Network Resilience
+### 🧹 Cleaner Boot & Service Behavior
 
-* **Root Fallback:** Fetches now automatically retry via root `wget` if blocked by CORS or browser restrictions.
-* **Detailed Logging:** All network requests (mirrors, JSON, custom sources) now log to the Debug Console for visibility.
-* **Startup Optimization:** Consolidated `mirrors.json` fetching to a single request at launch.
+* **Consolidated Cleanup:** `CLEANUP_WEBUI` moved into `utils.sh`, shared by boot (`service.sh`) and a new **Clean WebUI** option in the Action Menu.
+* **Scoped GMS Cleaning:** Now runs at install/flash time instead of every boot.
 
-### 🔒 Installer Safety
+### 🎛 Settings & Source Management
 
-* **Input Lock:** Prevents accidental input during app switching. If you leave the root manager mid-install, the installer locks input until you return and press Volume Down to resume.
+* **Persistent Custom Source:** Custom library URL/repo now saved via `localStorage`.
+* **Args Edit Modal:** Install command arguments now edited via modal instead of a live input.
+* **Smarter "Current" Detection:** Reads the module's actual `description=` field rather than relying on update-pending state.
 
-### 🎛 CLI Menu
+### 🐞 Debug Console
 
-* **Clean Exit:** Added an explicit **Exit** option to font/emoji and install-mode menus to prevent script errors.
+* **Readable Logs:** Noisy output (base64 dumps, repetitive results) summarized into readable labels.
+* **Environment Info:** Device model, Android version, and root manager version logged on startup.
+
+### 🖥 UI Polish
+
+* File sizes shown in download list; reduced unnecessary grid re-animations; added terminal Reboot button.

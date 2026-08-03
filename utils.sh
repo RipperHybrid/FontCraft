@@ -23,6 +23,16 @@ log() {
     echo "$(date '+%Y-%m-%d %I:%M:%S %p') - $1" >> "$logfont"
 }
 
+pluralize() {
+    local count="$1"
+    local word="$2"
+    if [ "$count" -eq 1 ]; then
+        echo "$word"
+    else
+        echo "${word}s"
+    fi
+}
+
 chooseport() {
     [ "$1" ] && local delay=$1 || local delay=10
     local attempts=0
@@ -205,24 +215,32 @@ start_server() {
 }
 
 modify_prop() {
+    local silent=false
+    if [ "$1" = "-s" ]; then
+        silent=true
+        shift
+    fi
+
     local prop_key="$1"
     local prop_value="$2"
     local target_file="${3:-$MODPATH/module.prop}"
 
     if [ ! -f "$target_file" ]; then
-        log "Error: File $target_file not found."
+        [ "$silent" = false ] && log "Error: File $target_file not found."
         return 1
     fi
 
     if grep -q "^$prop_key=" "$target_file"; then
         local safe_value=$(printf '%s\n' "$prop_value" | sed 's/[~&]/\\&/g')
         sed -i "s~^$prop_key=.*~$prop_key=$safe_value~" "$target_file" || {
-            log "Error: Failed to modify $prop_key in $(basename "$target_file")"
+            [ "$silent" = false ] && log "Error: Failed to modify $prop_key in $(basename "$target_file")"
             return 1
         }
-        log "Set $prop_key to $prop_value in $(basename "$target_file")"
+        [ "$silent" = false ] && log "Set $prop_key to $prop_value in $(basename "$target_file")"
+        return 0
     else
-        log "Warning: Property $prop_key not found in $(basename "$target_file"), skipping"
+        [ "$silent" = false ] && log "Warning: Property $prop_key not found in $(basename "$target_file"), skipping"
+        return 1
     fi
 }
 
@@ -247,9 +265,7 @@ gms_cleaner() {
     TARGETS="$GMS_PKG.fonts.provider.FontsProvider $GMS_PKG.fonts.update.UpdateSchedulerService"
     CHANGES_MADE=0
 
-    echo " "
     log "GMS Font Cleaner <<<"
-    echo " "
 
     log "Checking GMS Services..."
     for USER_ID in $(ls /data/user); do
@@ -286,13 +302,12 @@ gms_cleaner() {
         done
     fi
 
-    echo " "
     if [ "$CHANGES_MADE" -eq 1 ]; then
         log "CLEANUP COMPLETE !!!"
         log "Reboot is recommended to apply changes."
     else
         log "System is optimal"
-        log "No GMS fonts found. No reboot needed."
+        log "No GMS fonts found."
     fi
     sleep 3
 }
@@ -303,10 +318,6 @@ install_font() {
     local modpath="$3"
     local dest_path="$modpath/system/fonts"
 
-    ui_print " "
-    ui_print "=============================="
-    log "Installing: $font_name"
-    ui_print "=============================="
     sleep 0.2
 
     mkdir -p "$dest_path"
@@ -352,7 +363,7 @@ install_font() {
             log "Error: Failed to install Roboto-Regular.ttf"
             exit 1
         }
-        log "Note: Set your device font to 'Default' in OS settings to see changes."
+        log "Note: Set device font to 'Default' in OS settings."
 
         font="$selected_item"
 
@@ -426,6 +437,7 @@ download_ef() {
     local url="$1"
     local output_path="$2"
     local file_size="$3"
+    local expected_sha256="$4"
 
     if [ -z "$url" ] || [ -z "$output_path" ]; then
         log "Error: Missing parameters for download."
@@ -452,14 +464,34 @@ download_ef() {
         return 1
     fi
 
-    if [ -s "$output_path" ]; then
-        log "Download complete"
-        return 0
-    else
+    if [ ! -s "$output_path" ]; then
         log "Error: Downloaded file is empty."
         rm -f "$output_path"
         return 1
     fi
+
+    log "Download complete"
+
+    if [ -n "$expected_sha256" ] && [ "$expected_sha256" != "null" ]; then
+        if command -v sha256sum >/dev/null 2>&1; then
+            local actual_sha256
+            actual_sha256=$(sha256sum "$output_path" | cut -d' ' -f1)
+            actual_sha256=$(printf '%s' "$actual_sha256" | tr '[:upper:]' '[:lower:]')
+            local wanted_sha256
+            wanted_sha256=$(printf '%s' "$expected_sha256" | tr '[:upper:]' '[:lower:]')
+            if [ "$actual_sha256" != "$wanted_sha256" ]; then
+                log "SHA256 mismatch! Expected $wanted_sha256, got $actual_sha256"
+                log "File is corrupted or tampered with, removing."
+                rm -f "$output_path"
+                return 1
+            fi
+            log "SHA256 verified"
+        else
+            log "Warning: sha256sum not found, skipping integrity check"
+        fi
+    fi
+
+    return 0
 }
 
 get_working_mirror() {
@@ -578,5 +610,70 @@ check_existing_install() {
         ui_print "- Cleaning up legacy XML backups..."
         rm -rf "$backup_dir"
         log "Purge complete."
+    fi
+}
+
+CLEANUP_WEBUI() {
+    log "WebUI Cleaner <<<"
+    FOUND_BB=$(find_busybox)
+
+    if [ -z "$FOUND_BB" ]; then
+        log "Warning: Busybox not found, cleanup may be incomplete."
+    fi
+
+    local killed_any=0
+    local active_port=""
+
+    if [ -f "$PORT_FILE" ]; then
+        active_port=$(cat "$PORT_FILE" 2>/dev/null | tr -d '[:space:]')
+    fi
+
+    local httpd_pids=""
+    if [ -n "$FOUND_BB" ]; then
+        httpd_pids=$("$FOUND_BB" pgrep -f "httpd -p 127.0.0.1:" 2>/dev/null)
+    fi
+
+    if [ -n "$httpd_pids" ]; then
+        local httpd_count
+        httpd_count=$(echo "$httpd_pids" | wc -l)
+        local httpd_word
+        httpd_word=$(pluralize "$httpd_count" "process")
+        "$FOUND_BB" pkill -f "httpd -p 127.0.0.1:" >/dev/null 2>&1
+        if [ -n "$active_port" ]; then
+            log "Killed $httpd_count WebUI server $httpd_word on port $active_port (PID: $(echo "$httpd_pids" | tr '\n' ' '))"
+        else
+            log "Killed $httpd_count stale WebUI server $httpd_word (PID: $(echo "$httpd_pids" | tr '\n' ' '))"
+        fi
+        killed_any=1
+    fi
+
+    local monitor_pids=""
+    if [ -n "$FOUND_BB" ]; then
+        monitor_pids=$("$FOUND_BB" pgrep -f "$MODPATH/monitor.sh" 2>/dev/null)
+        [ -z "$monitor_pids" ] && monitor_pids=$("$FOUND_BB" pgrep -f "$MODPATH/monitor" 2>/dev/null)
+    fi
+
+    if [ -n "$monitor_pids" ]; then
+        local monitor_count
+        monitor_count=$(echo "$monitor_pids" | wc -l)
+        local monitor_word
+        monitor_word=$(pluralize "$monitor_count" "process")
+        "$FOUND_BB" pkill -f "$MODPATH/monitor.sh" >/dev/null 2>&1
+        "$FOUND_BB" pkill -f "$MODPATH/monitor" >/dev/null 2>&1
+        log "Killed $monitor_count session watcher $monitor_word (PID: $(echo "$monitor_pids" | tr '\n' ' '))"
+        killed_any=1
+    fi
+
+    if [ -d "$FC_ROOT" ]; then
+        rm -rf "$FC_ROOT"
+        log "Removed stale session files ($FC_ROOT)"
+        killed_any=1
+    fi
+
+    if [ "$killed_any" -eq 1 ]; then
+        log "CLEANUP COMPLETE !!!"
+    else
+        log "System is optimal"
+        log "No active WebUI processes or session files found."
     fi
 }

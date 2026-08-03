@@ -21,22 +21,6 @@ done
 
 log "Boot completed, executing startup tasks"
 
-CLEANUP_WEBUI() {
-    log "Running WebUI cleanup..."
-    FOUND_BB=$(find_busybox)
-
-    if [ -n "$FOUND_BB" ]; then
-        "$FOUND_BB" pkill -f "httpd -p 127.0.0.1:" >/dev/null 2>&1
-        "$FOUND_BB" pkill -f "$MODPATH/monitor.sh" >/dev/null 2>&1
-        "$FOUND_BB" pkill -f "$MODPATH/monitor" >/dev/null 2>&1
-    fi
-
-    rm -rf "/cache/fontcraft"
-
-    log "WebUI cleanup: Stopped processes and removed stale files"
-}
-
 CLEANUP_WEBUI
-gms_cleaner
 
 log "Startup tasks complete. Service exiting."

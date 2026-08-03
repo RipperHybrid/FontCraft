@@ -124,7 +124,7 @@
             <p id="confDescription"></p>
             <div class="mtf-actions">
                 <button id="confYesBtn" class="mtf-btn yes-btn">Yes</button>
-                <button id="confNoBtn" class="mtf-btn no-btn">No</button>
+                <button id="confNoBtn" class="mtf-btn cancel-btn">No</button>
             </div>
         </div>
     </div>
@@ -134,7 +134,10 @@
     <div class="modal-box terminal-box">
         <div class="modal-header">
             <h3>Installation Output</h3>
-            <button class="close-modal" id="termCloseBtn" onclick="window.fontUI.closeTerminal()">&times;</button>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <button class="download-action-btn" id="termRebootBtn" style="display:none; padding: 4px 10px; font-size: 0.65em;" onclick="window.fontUI.promptReboot()">Reboot</button>
+                <button class="close-modal" id="termCloseBtn" onclick="window.fontUI.closeTerminal()">&times;</button>
+            </div>
         </div>
         <div class="modal-content terminal-wrapper">
             <pre id="terminalOutput">Waiting for command...</pre>
@@ -170,13 +173,10 @@
                 <div class="preview-size-row">
                     <button class="preview-size-btn" data-size="16" onclick="window.fontUI.setPreviewSize(16)">16px</button>
                     <button class="preview-size-btn active" data-size="22" onclick="window.fontUI.setPreviewSize(22)">22px</button>
-                    <button class="preview-size-btn" data-size="32" onclick="window.fontUI.setPreviewSize(32)">32px</button>
-                    <button class="preview-size-btn" data-size="48" onclick="window.fontUI.setPreviewSize(48)">48px</button>
                 </div>
                 <div class="preview-textarea-wrap">
                     <div id="previewInput" spellcheck="false"></div>
                 </div>
-                <div class="preview-hint">Live preview of your font — no typing needed, this just shows how it renders.</div>
             </div>
         </div>
     </div>
@@ -258,6 +258,21 @@
         </div>
         <div class="modal-content terminal-wrapper">
             <div id="debugOutput">Initializing...</div>
+        </div>
+    </div>
+</div>
+
+<div id="argsModal" class="modal-overlay" style="z-index: 10040; align-items: flex-start; padding-top: 120px;">
+    <div class="modal-box curvy-modal">
+        <div class="modal-header">
+            <h3>Edit Arguments</h3>
+        </div>
+        <div class="modal-content">
+            <input type="text" id="argsEditInput" class="settings-input" style="width: 100%; text-align: center; margin-bottom: 8px;" spellcheck="false" autocomplete="off">
+            <div class="mtf-actions">
+                <button class="mtf-btn yes-btn" onclick="window.fontUI.saveArgs()">Save</button>
+                <button class="mtf-btn cancel-btn" onclick="window.fontUI.closeArgsModal()">Cancel</button>
+            </div>
         </div>
     </div>
 </div>

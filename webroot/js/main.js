@@ -1,5 +1,5 @@
 import { CONFIG, STATE, MODULE_PATH } from './config.js';
-import { ksuExec, wait, showToast, formatSize, checkInternet, cleanupWorkspace, downloadViaBrowserBridge, resilientFetchJson, resilientCheckUrl } from './utils.js';
+import { ksuExec, wait, showToast, formatSize, checkInternet, cleanupWorkspace, downloadViaBrowserBridge, resilientFetchJson, resilientCheckUrl, getDeviceInfo, getRootVersion } from './utils.js';
 import { processAndFlash } from './flasher.js';
 import { StylizeTextIcons } from './icons.js';
 import { detectStorageVolumes, openCustomFilePicker, closeCustomFilePicker, updateFileBrowserPath, createFileItemElement, listFilesInPath, handleFileBrowserClick, handleFilePathClick, handleFileBrowserBack } from './files.js';
@@ -7,8 +7,16 @@ import { detectStorageVolumes, openCustomFilePicker, closeCustomFilePicker, upda
 class FontCraftUI {
     constructor() {
         this.data = null;
-        this.activeJsonUrl = CONFIG.DEFAULT_JSON_URL;
-        this.activeRepoName = "RipperHybrid (Default)";
+
+        let storedUrl = null;
+        let storedRepo = null;
+        try {
+            storedUrl = localStorage.getItem('fc_custom_url');
+            storedRepo = localStorage.getItem('fc_custom_repo');
+        } catch (e) {}
+
+        this.activeJsonUrl = storedUrl || CONFIG.DEFAULT_JSON_URL;
+        this.activeRepoName = storedRepo || "RipperHybrid (Default)";
         this.currentCategory = 'Emoji';
         this.themes = ['neumorphic'];
         this.queue = { Emoji: null, Fonts: null };
@@ -24,6 +32,8 @@ class FontCraftUI {
         this.selectedMirrorValue = 'default';
         this.selectedMirrorName = 'Auto-Detect (Default)';
         this.updatePending = false;
+        this.hasCurrentFont = false;
+        this.hasCurrentEmoji = false;
 
         this.detectStorageVolumes = detectStorageVolumes.bind(this);
         this.openCustomFilePicker = openCustomFilePicker.bind(this);
@@ -85,21 +95,42 @@ class FontCraftUI {
 
         try {
             await this.detectRootManager();
+            await this.logEnvironmentInfo();
             await cleanupWorkspace(this.ksuExec.bind(this), CONFIG.WORK_DIR);
         } catch (e) {}
 
         await this.checkUpdatePending();
+        await this.checkCurrentItems();
         this.populateMirrorsDropdown();
         this.fetchLibrary();
         this.updateBuildUI();
     }
 
+    async logEnvironmentInfo() {
+        try {
+            await getDeviceInfo(this.ksuExec.bind(this));
+            await getRootVersion(this.ksuExec.bind(this), STATE.ROOT_MANAGER, STATE.ROOT_CMD);
+        } catch (e) {}
+    }
+
     async checkUpdatePending() {
         try {
-            const result = await this.ksuExec(`if [ -f "/data/adb/modules/StylizeText/update" ]; then echo "yes"; fi`);
+            const result = await this.ksuExec(`if [ -f "/data/adb/modules/StylizeText/update" ]; then echo "yes"; else echo "no"; fi`);
             this.updatePending = result.includes("yes");
         } catch (e) {
             this.updatePending = false;
+        }
+    }
+
+    async checkCurrentItems() {
+        try {
+            const propDesc = await this.ksuExec(`cat "/data/adb/modules/StylizeText/module.prop" | grep "description="`);
+            const descStr = propDesc.trim();
+            this.hasCurrentFont = /\bFont:\s*[^|\]]+/.test(descStr);
+            this.hasCurrentEmoji = /\bEmoji:\s*[^|\]]+/.test(descStr);
+        } catch (e) {
+            this.hasCurrentFont = false;
+            this.hasCurrentEmoji = false;
         }
     }
 
@@ -179,42 +210,68 @@ class FontCraftUI {
 
         const rebootFabIcon = document.getElementById('rebootFabIcon');
         if(rebootFabIcon) rebootFabIcon.innerHTML = StylizeTextIcons.getRebootIcon();
+
+        document.querySelectorAll('.close-modal').forEach(btn => {
+            btn.innerHTML = StylizeTextIcons.getCloseIcon();
+        });
     }
 
     injectSettingsUI() {
         const installerDisplay = document.getElementById('installerPathDisplay');
         const parent = installerDisplay ? installerDisplay.closest('.settings-group') : null;
 
-        if (parent && !document.getElementById('installArgsInput')) {
+        if (parent && !document.getElementById('argsRowContainer')) {
             const container = document.createElement('div');
+            container.id = 'argsRowContainer';
             container.className = 'binary-selector';
             container.style.marginTop = '10px';
-            container.innerHTML = `<label>Installation Command Arguments</label><div class="input-row"><input type="text" id="installArgsInput" class="settings-input" value="module install" placeholder="e.g. module install"></div><p style="font-size:0.65em; color:var(--text2); margin-top:4px">Full command: <span style="font-family:monospace">\${STATE.ROOT_CMD} <span id="cmdPreview">module install</span> "zip"</span></p>`;
+            container.innerHTML = `
+                <label>Installation Command Arguments</label>
+                <div class="binary-row" onclick="window.fontUI.openArgsModal()">
+                    <span class="binary-row-label">Args</span>
+                    <span class="binary-row-value" id="argsPathDisplay">Detecting...</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
+                <p style="font-size:0.65em; color:var(--text2); margin-top:4px">Full command: <span style="font-family:monospace">\${STATE.ROOT_CMD} <span id="cmdPreview">module install</span> "zip"</span></p>
+            `;
             const presetBtns = parent.querySelector('.binary-selector-group');
             if (presetBtns) parent.insertBefore(container, presetBtns.nextSibling);
             else parent.appendChild(container);
-
-            const input = document.getElementById('installArgsInput');
-            input.addEventListener('input', (e) => {
-                STATE.INSTALL_ARGS = e.target.value;
-                document.getElementById('cmdPreview').innerText = STATE.INSTALL_ARGS;
-            });
         }
+    }
+
+    openArgsModal() {
+        const modal = document.getElementById('argsModal');
+        const input = document.getElementById('argsEditInput');
+        input.value = STATE.INSTALL_ARGS || "";
+        modal.classList.add('active');
+        setTimeout(() => input.focus(), 100);
+    }
+
+    closeArgsModal() {
+        document.getElementById('argsModal').classList.remove('active');
+    }
+
+    saveArgs() {
+        const input = document.getElementById('argsEditInput');
+        STATE.INSTALL_ARGS = input.value;
+        this.updateSettingsUI();
+        this.closeArgsModal();
     }
 
     async detectRootManager() {
         try {
-            const ksuCheck = await this.ksuExec("if [ -d '/data/adb/ksu/bin' ]; then echo 'exists'; fi");
+            const ksuCheck = await this.ksuExec("if [ -d '/data/adb/ksu/bin' ]; then echo 'exists'; else echo 'not found'; fi");
             if (ksuCheck.includes('exists')) { this.applyPreset('ksu'); return; }
         } catch (e) {}
 
         try {
-            const apdCheck = await this.ksuExec("if [ -f '/data/adb/apd' ] || [ -d '/data/adb/ap/bin' ]; then echo 'exists'; fi");
+            const apdCheck = await this.ksuExec("if [ -f '/data/adb/apd' ] || [ -d '/data/adb/ap/bin' ]; then echo 'exists'; else echo 'not found'; fi");
             if (apdCheck.includes('exists')) { this.applyPreset('apatch'); return; }
         } catch (e) {}
 
         try {
-            const magiskCheck = await this.ksuExec("if [ -f '/data/adb/magisk/busybox' ]; then echo 'exists'; fi");
+            const magiskCheck = await this.ksuExec("if [ -f '/data/adb/magisk/busybox' ]; then echo 'exists'; else echo 'not found'; fi");
             if (magiskCheck.includes('exists')) { this.applyPreset('magisk'); return; }
         } catch (e) {}
 
@@ -227,13 +284,15 @@ class FontCraftUI {
     updateSettingsUI() {
         const bbDisplay = document.getElementById('bbPathDisplay');
         const installerDisplay = document.getElementById('installerPathDisplay');
-        const argsInput = document.getElementById('installArgsInput');
+        const argsDisplay = document.getElementById('argsPathDisplay');
+
         if (bbDisplay) bbDisplay.innerText = STATE.BB || "Not Set";
         if (installerDisplay) installerDisplay.innerText = STATE.ROOT_CMD || "Not Set";
-        if (argsInput) {
-            argsInput.value = STATE.INSTALL_ARGS;
+
+        if (argsDisplay) {
+            argsDisplay.innerText = STATE.INSTALL_ARGS || "None";
             const preview = document.getElementById('cmdPreview');
-            if (preview) preview.innerText = STATE.INSTALL_ARGS;
+            if (preview) preview.innerText = STATE.INSTALL_ARGS || "None";
         }
 
         const triggerSpan = document.querySelector('#mirrorSelectTrigger span');
@@ -379,6 +438,11 @@ class FontCraftUI {
         document.getElementById('previewModal').addEventListener('click', (e) => {
             if (e.target.id === 'previewModal') this.closePreviewModal();
         });
+        document.getElementById('argsModal').addEventListener('click', (e) => {
+            if (e.target.id === 'argsModal') {
+                this.closeArgsModal();
+            }
+        });
         document.getElementById('file-selector-back').innerHTML = StylizeTextIcons.getBackIcon();
 
         this.bindCustomSelectOptions();
@@ -482,7 +546,11 @@ class FontCraftUI {
 
             if (!(await checkInternet(this.ksuExec.bind(this), STATE.ROOT_BIN, STATE.BB))) throw new Error("No internet connection");
 
-            if (this.activeJsonUrl === CONFIG.DEFAULT_JSON_URL) this.activeJsonUrl = await this.getWorkingMirror();
+            if (this.activeJsonUrl === CONFIG.DEFAULT_JSON_URL) {
+                this.activeJsonUrl = await this.getWorkingMirror();
+            } else {
+                this.updateRepoDisplay();
+            }
 
             loader.querySelector('p').innerText = "Loading Fonts...";
 
@@ -502,15 +570,28 @@ class FontCraftUI {
         }
     }
 
-    renderGrid(category) {
+    renderGrid(category, animate = true) {
         this.currentCategory = category;
         const grid = document.getElementById('gridContainer');
+
+        if (!animate) grid.classList.add('no-anim');
+        else grid.classList.remove('no-anim');
+
         grid.innerHTML = '';
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === category));
 
         if (category === 'Fonts' || category === 'Emoji') {
             const customCard = document.createElement('div');
             customCard.className = 'font-card';
+
+            if (animate) {
+                customCard.style.animationDelay = '0s';
+            } else {
+                customCard.style.animation = 'none';
+                customCard.style.opacity = '1';
+                customCard.style.transform = 'none';
+            }
+
             const cardTitle = category === 'Fonts' ? 'Custom Font' : 'Custom Emoji';
 
             const selectedItem = this.queue[category];
@@ -529,13 +610,14 @@ class FontCraftUI {
                     btnStyle = 'background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.3); color: var(--green);';
                 } else {
                     buttonText = 'Clear Download First';
-                    sizeText = `<div class="card-size">Using Online Item</div>`;
+                    sizeText = selectedItem.size ? `<div class="card-size">${selectedItem.size} — Online Item</div>` : `<div class="card-size">Using Online Item</div>`;
                     btnStyle = 'opacity: 0.5; cursor: not-allowed; border-color: transparent;';
                     btnAction = `window.fontUI.showToast('Clear the downloaded item from the queue first!', 'warning')`;
                 }
                 actionHtml = `<button class="install-btn" onclick="${btnAction}" style="${btnStyle}">${buttonText}</button>`;
             } else {
-                const currentBtnHtml = this.updatePending
+                const hasCurrent = category === 'Fonts' ? this.hasCurrentFont : this.hasCurrentEmoji;
+                const currentBtnHtml = (this.updatePending || !hasCurrent)
                     ? ''
                     : `<button class="install-btn" onclick="window.fontUI.selectCurrentItem('${category}')" style="flex:1; background:var(--bg2);">Current</button>`;
                 actionHtml = `<div style="display:flex; gap:6px; width:100%;">
@@ -570,10 +652,19 @@ class FontCraftUI {
         }
 
         const items = this.data[category];
-        Object.keys(items).forEach(folderName => {
+        Object.keys(items).forEach((folderName, index) => {
             const itemData = items[folderName];
             const card = document.createElement('div');
             card.className = 'font-card';
+
+            if (animate) {
+                card.style.animationDelay = `${(index + 1) * 0.035}s`;
+            } else {
+                card.style.animation = 'none';
+                card.style.opacity = '1';
+                card.style.transform = 'none';
+            }
+
             const imgUrl = itemData.preview || 'placeholder.png';
             const displayImg = imgUrl.startsWith('http') ? imgUrl : 'https://placehold.co/400x200?text=No+Preview';
 
@@ -611,9 +702,11 @@ class FontCraftUI {
 
         itemData.files.forEach(file => {
             const expectedSize = file.size_bytes || 0;
+            const sizeLabel = expectedSize > 0 ? formatSize(expectedSize) : '';
+            const expectedSha = file.sha256 || '';
             const row = document.createElement('div');
             row.className = 'file-row';
-            row.innerHTML = `<span>${file.filename}</span><button class="download-action-btn" onclick="window.fontUI.addToQueue('${category}', '${folderName}', '${file.download_url}', '${file.filename}', this, ${expectedSize})">Add to Queue</button>`;
+            row.innerHTML = `<span>${file.filename}${sizeLabel ? ` <span style="color:var(--text2)">(${sizeLabel})</span>` : ''}</span><button class="download-action-btn" onclick="window.fontUI.addToQueue('${category}', '${folderName}', '${file.download_url}', '${file.filename}', this, ${expectedSize}, '${expectedSha}')">Add to Queue</button>`;
             list.appendChild(row);
         });
 
@@ -621,7 +714,7 @@ class FontCraftUI {
         this.toggleBodyLock(true);
     }
 
-    async addToQueue(category, folderName, url, filename, btnElement, expectedSize = 0) {
+    async addToQueue(category, folderName, url, filename, btnElement, expectedSize = 0, expectedSha256 = "") {
         const modal = document.getElementById('installModal');
         const closeBtn = modal.querySelector('.close-modal');
         modal.classList.add('locked');
@@ -631,7 +724,7 @@ class FontCraftUI {
             this.showToast(`[Browser Mode] Added to queue: ${filename}`, 'info');
             this.queue[category] = { name: folderName, path: `/mock/${filename}`, filename: filename };
             this.updateBuildUI();
-            this.renderGrid(this.currentCategory);
+            this.renderGrid(this.currentCategory, false);
             this.unlockModal(modal, closeBtn);
             return;
         }
@@ -642,6 +735,10 @@ class FontCraftUI {
         }
 
         this.showToast(`Starting download process...`, 'info');
+
+        const row = btnElement.closest('.file-row');
+        const nameSpan = row ? row.querySelector('span') : null;
+        if (nameSpan) nameSpan.innerText = filename;
 
         try { await this.ksuExec(`mkdir -p "${CONFIG.WORK_DIR}"`); } catch(e) {}
 
@@ -658,6 +755,8 @@ class FontCraftUI {
                 const sizeOutput = await this.ksuExec(sizeCmd);
                 expectedBytes = parseInt(sizeOutput.trim()) || 0;
             }
+
+            const expectedSizeLabel = expectedBytes > 0 ? formatSize(expectedBytes) : null;
 
             this.showToast(`Downloading ${filename}...`, 'info');
             await this.ksuExec(`rm -f "${destPath}"`);
@@ -681,11 +780,13 @@ class FontCraftUI {
                 try {
                     const sizeCmd = `sh -c "${STATE.BB} du -h '${destPath}' | awk '{print \\$1}'"`;
                     const size = await this.ksuExec(sizeCmd);
-                    if (size && size.trim() !== "" && !size.includes("No such")) btnElement.innerText = `DL: ${size.trim()}`;
+                    if (size && size.trim() !== "" && !size.includes("No such")) {
+                        btnElement.innerText = expectedSizeLabel ? `DL: ${size.trim()} / ${expectedSizeLabel}` : `DL: ${size.trim()}`;
+                    }
                     const checkRunning = await this.ksuExec(`if [ -d "/proc/${pid}" ]; then echo "running"; else echo "stopped"; fi`);
                     if (checkRunning.includes("stopped")) {
                         clearInterval(pollInterval);
-                        this.finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, modal, closeBtn, expectedBytes);
+                        this.finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, modal, closeBtn, expectedBytes, expectedSha256);
                     }
                 } catch (err) {}
             }, 1000);
@@ -695,10 +796,12 @@ class FontCraftUI {
             this.showToast("Wget failed, trying fallback...", 'warning');
             try {
                 btnElement.innerText = "Streaming...";
+                const expectedSizeLabel = expectedBytes > 0 ? formatSize(expectedBytes) : null;
                 await downloadViaBrowserBridge(url, destPath, this.ksuExec.bind(this), (bytes) => {
-                    btnElement.innerText = `DL: ${(bytes / 1024 / 1024).toFixed(2)} MB`;
+                    const gotLabel = `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+                    btnElement.innerText = expectedSizeLabel ? `DL: ${gotLabel} / ${expectedSizeLabel}` : `DL: ${gotLabel}`;
                 });
-                this.finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, modal, closeBtn, expectedBytes);
+                this.finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, modal, closeBtn, expectedBytes, expectedSha256);
             } catch (err2) {
                 this.handleDownloadError(btnElement, originalText, err2.message);
                 this.unlockModal(modal, closeBtn);
@@ -706,10 +809,11 @@ class FontCraftUI {
         }
     }
 
-    async finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, modal, closeBtn, expectedBytes) {
+    async finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, modal, closeBtn, expectedBytes, expectedSha256 = "") {
         try {
-            const check = await this.ksuExec(`if [ -f "${destPath}" ]; then echo "exists"; fi`);
+            const check = await this.ksuExec(`if [ -f "${destPath}" ]; then echo "exists"; else echo "not found"; fi`);
             if (check.includes("exists")) {
+                let finalSizeLabel = '';
                 if (expectedBytes > 0) {
                     const localSizeCmd = `sh -c "${STATE.BB} wc -c '${destPath}' | awk '{print \\$1}'"`;
                     const localResult = await this.ksuExec(localSizeCmd);
@@ -720,14 +824,51 @@ class FontCraftUI {
                         const gotMB = (localBytes / 1048576).toFixed(2);
                         throw new Error(`Size mismatch! Expected ${expMB} MB but got ${gotMB} MB. File is corrupted or incomplete.`);
                     }
+                    finalSizeLabel = formatSize(localBytes);
+                } else {
+                    const finalSizeCmd = `sh -c "${STATE.BB} du -h '${destPath}' | awk '{print \\$1}'"`;
+                    finalSizeLabel = (await this.ksuExec(finalSizeCmd)).trim();
                 }
-                const finalSizeCmd = `sh -c "${STATE.BB} du -h '${destPath}' | awk '{print \\$1}'"`;
-                const finalSize = await this.ksuExec(finalSizeCmd);
-                btnElement.innerText = `Done (${finalSize.trim()})`;
-                this.queue[category] = { name: folderName, path: destPath, filename: filename };
-                this.showToast(`Verified: ${folderName}`, 'success');
+
+                let shaVerified = false;
+
+                if (expectedSha256) {
+                    btnElement.innerText = "Verifying SHA256...";
+                    const shaCmd = `sh -c "${STATE.BB} sha256sum '${destPath}' | awk '{print \\$1}'"`;
+                    const shaOutput = await this.ksuExec(shaCmd);
+                    const actualSha = shaOutput.trim().toLowerCase();
+                    const wantedSha = expectedSha256.toLowerCase();
+                    const isMatch = actualSha === wantedSha;
+
+                    const shortActual = `${actualSha.slice(0, 12)}...${actualSha.slice(-8)}`;
+                    const shortWanted = `${wantedSha.slice(0, 12)}...${wantedSha.slice(-8)}`;
+
+                    this.commandHistory.push({
+                        command: `[verify] sha256 ${filename}`,
+                        output: isMatch
+                            ? `MATCH \u2713 (${shortActual})`
+                            : `MISMATCH \u2717 — expected ${shortWanted}, got ${shortActual}`,
+                        error: isMatch ? null : "SHA256 verification failed",
+                        time: new Date().toLocaleString()
+                    });
+
+                    if (!isMatch) {
+                        await this.ksuExec(`rm -f "${destPath}"`);
+                        throw new Error(`SHA256 mismatch! File may be corrupted or tampered with.`);
+                    }
+
+                    shaVerified = true;
+                }
+
+                btnElement.innerText = shaVerified ? `Done (${finalSizeLabel}, SHA \u2713)` : `Done (${finalSizeLabel})`;
+                this.queue[category] = { name: folderName, path: destPath, filename: filename, size: finalSizeLabel };
+
+                const truncated = folderName.length > 25 ? folderName.substring(0, 22) + '...' : folderName;
+                const shortName = this.escapeHtml(truncated);
+
+                this.showToast(shaVerified ? `Verified (SHA256): ${shortName}` : `Verified: ${shortName}`, 'success');
                 this.updateBuildUI();
-                this.renderGrid(this.currentCategory);
+                this.renderGrid(this.currentCategory, false);
                 setTimeout(() => this.unlockModal(modal, closeBtn), 500);
             } else throw new Error("Download failed or file empty");
         } catch (e) {
@@ -776,7 +917,7 @@ class FontCraftUI {
             this.queue[type] = null;
         }
         this.updateBuildUI();
-        this.renderGrid(this.currentCategory);
+        this.renderGrid(this.currentCategory, false);
         this.closeClearModal();
     }
 
@@ -844,8 +985,9 @@ class FontCraftUI {
     showTerminal() {
         document.getElementById('terminalModal').classList.add('active');
         this.toggleBodyLock(true);
-        document.getElementById('terminalOutput').innerText = "Initializing Environment...\n";
+        document.getElementById('terminalOutput').innerText = ">>> Initializing Environment...\n";
         document.getElementById('termCloseBtn').style.display = 'none';
+        document.getElementById('termRebootBtn').style.display = 'none';
     }
 
     updateTerminal(text) {
@@ -856,10 +998,11 @@ class FontCraftUI {
 
     closeTerminal() {
         document.getElementById('terminalModal').classList.remove('active');
+        document.getElementById('termRebootBtn').style.display = 'none';
         this.toggleBodyLock(false);
         this.queue = { Emoji: null, Fonts: null };
         this.updateBuildUI();
-        this.renderGrid(this.currentCategory);
+        this.renderGrid(this.currentCategory, false);
         cleanupWorkspace(this.ksuExec.bind(this), CONFIG.WORK_DIR);
     }
 
@@ -894,7 +1037,7 @@ class FontCraftUI {
             this.queue[category] = { name: name, path: path, filename: name, size: fileSize, isLocal: true };
             this.showToast(`Added ${name.replace(/\.[^/.]+$/, "")} to Queue`, 'success');
             this.updateBuildUI();
-            this.renderGrid(this.currentCategory);
+            this.renderGrid(this.currentCategory, false);
         } catch (error) {
             if (error.message !== "File selection cancelled.") this.showToast(error.message, 'info');
         }
@@ -928,18 +1071,18 @@ class FontCraftUI {
         } else {
             const emojiTest = `${modPath}/system/fonts/NotoColorEmoji.ttf`;
             try {
-                const checkCmd = `if [ -f "${emojiTest}" ]; then echo "${emojiTest}"; fi`;
+                const checkCmd = `if [ -f "${emojiTest}" ]; then echo "${emojiTest}"; else echo "not found"; fi`;
                 const checkResult = await this.ksuExec(checkCmd);
                 targetPath = checkResult.trim();
             } catch (e) {}
         }
 
-        if (!targetPath) {
+        if (!targetPath || targetPath === "not found") {
             this.showToast(`No current ${category} found in module!`, 'warning');
             return;
         }
 
-        let itemName = `Current ${category}`;
+        let itemName = null;
         try {
             const propDesc = await this.ksuExec(`cat "${modPath}/module.prop" | grep "description="`);
             const descStr = propDesc.trim();
@@ -952,6 +1095,14 @@ class FontCraftUI {
                 if (match && match[1]) itemName = match[1].trim();
             }
         } catch (e) {}
+
+        if (!itemName) {
+            this.hasCurrentFont = category === 'Fonts' ? false : this.hasCurrentFont;
+            this.hasCurrentEmoji = category === 'Emoji' ? false : this.hasCurrentEmoji;
+            this.showToast(`No current ${category} found in module!`, 'warning');
+            this.renderGrid(this.currentCategory, false);
+            return;
+        }
 
         let fileSize = '';
         if (typeof ksu !== 'undefined' || STATE.ROOT_BIN) {
@@ -968,7 +1119,7 @@ class FontCraftUI {
         this.queue[category] = { name: itemName, path: targetPath, filename: `${itemName}.ttf`, size: fileSize, isLocal: true };
         this.showToast(`Selected Current: ${itemName}`, 'success');
         this.updateBuildUI();
-        this.renderGrid(this.currentCategory);
+        this.renderGrid(this.currentCategory, false);
     }
 
     openSettings() {
@@ -990,6 +1141,10 @@ class FontCraftUI {
         if (this.selectedMirrorValue === 'default') {
             this.activeJsonUrl = CONFIG.DEFAULT_JSON_URL;
             this.activeRepoName = "RipperHybrid (Default)";
+            try {
+                localStorage.removeItem('fc_custom_url');
+                localStorage.removeItem('fc_custom_repo');
+            } catch (e) {}
             this.fetchLibrary();
             this.showToast("Source set to Auto-Detect", 'success');
             this.closeSettings();
@@ -1014,6 +1169,10 @@ class FontCraftUI {
 
             this.activeJsonUrl = targetUrl;
             this.activeRepoName = targetName;
+            try {
+                localStorage.setItem('fc_custom_url', targetUrl);
+                localStorage.setItem('fc_custom_repo', targetName);
+            } catch (e) {}
             this.updateRepoDisplay();
             this.fetchLibrary();
             this.showToast("Source Updated", 'success');
@@ -1105,7 +1264,6 @@ class FontCraftUI {
 
         editor.style.display = 'none';
         loader.style.display = 'flex';
-        loader.innerHTML = `<div class="spinner"></div><p>Reading font...</p>`;
 
         try {
             const sizeCheckCmd = `sh -c "${STATE.BB} wc -c '${item.path}' | awk '{print \\$1}'"`;
@@ -1117,7 +1275,7 @@ class FontCraftUI {
                 throw new Error(`Font too large for inline preview (${(bytes / 1048576).toFixed(1)} MB)`);
             }
 
-            const CHUNK_SIZE = 2 * 1024 * 1024;
+            const CHUNK_SIZE = 1966080;
             const totalChunks = Math.ceil(bytes / CHUNK_SIZE);
 
             const p = loader.querySelector('p');
@@ -1170,7 +1328,7 @@ class FontCraftUI {
                 this.showToast('Custom font loaded', 'success', 2000);
             }
 
-            input.textContent = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n0123456789 !@#$%^&*()';
+            input.textContent = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n0 1 2 3 4 5 6 7 8 9\n! @ # $ % ^ & * ()';
 
             loader.style.display = 'none';
             editor.style.display = 'flex';

@@ -3,6 +3,8 @@
     padding: 0;
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 :root {
@@ -305,6 +307,10 @@ body {
     box-shadow: var(--shadow-clay-sm);
 }
 
+.tab-btn:active {
+    transform: scale(0.96);
+}
+
 .loading-container {
     display: none;
     flex-direction: column;
@@ -333,7 +339,6 @@ body {
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
     padding-bottom: 20px;
-    animation: fadeUp 0.5s var(--ease-out) 0.2s both;
 }
 
 .font-card {
@@ -344,6 +349,19 @@ body {
     transition: all 0.25s var(--ease-out);
     display: flex;
     flex-direction: column;
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+    animation: cardIn 0.38s var(--ease-out) forwards;
+}
+
+@keyframes cardIn {
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.no-anim .font-card {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: translateY(0) scale(1) !important;
 }
 
 .card-preview {
@@ -440,11 +458,27 @@ body {
     z-index: 1000;
     padding: 20px;
     opacity: 0;
-    transition: opacity 0.3s var(--ease-out);
+    transition: opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+#installModal { z-index: 10003 !important; }
+#clearSelectionModal { z-index: 10004 !important; }
 #confirmationModal { z-index: 10005 !important; }
-.modal-overlay.active { display: flex; opacity: 1; }
+#settingsModal { z-index: 10010 !important; }
+#fileSelectorModal { z-index: 10020 !important; }
+#previewModal { z-index: 10025 !important; }
+#debugModal { z-index: 10030 !important; }
+
+#argsModal {
+    z-index: 10040 !important;
+    align-items: flex-start;
+    padding-top: 120px;
+}
+
+.modal-overlay.active {
+    display: flex;
+    opacity: 1;
+}
 .modal-overlay.locked { cursor: wait; }
 
 .modal-box {
@@ -453,9 +487,9 @@ body {
     max-width: 420px;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-clay);
-    transform: scale(0.96) translateY(10px) translateZ(0);
+    transform: scale(0.9) translateY(20px);
     opacity: 0;
-    transition: all 0.3s var(--ease-out);
+    transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.1), opacity 0.3s ease;
     pointer-events: auto;
     overflow: hidden;
     margin: 0 auto;
@@ -500,7 +534,10 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    line-height: 0;
+    padding-bottom: 3px;
     flex-shrink: 0;
     transition: all 0.2s;
 }
@@ -627,6 +664,7 @@ body {
     display: flex;
     gap: 12px;
     margin-top: 24px;
+    padding-bottom: 8px;
 }
 .mtf-btn {
     flex: 1;
@@ -642,7 +680,7 @@ body {
 }
 .mtf-btn:active { box-shadow: var(--inset-neo); transform: scale(0.95); }
 .yes-btn { background: var(--bg2); color: var(--cyan); }
-.no-btn { background: var(--bg1); color: var(--text2); }
+.cancel-btn { background: var(--bg1); color: var(--red); }
 
 .terminal-wrapper {
     background: var(--bg0);
@@ -660,6 +698,8 @@ body {
     font-family: var(--font-mono);
     font-size: 0.75rem;
     line-height: 1.6;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 #debugOutput {
@@ -667,6 +707,8 @@ body {
     max-height: 60vh;
     overflow-y: auto;
     font-family: var(--font-mono);
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .debug-entry {
@@ -866,6 +908,8 @@ body.modal-open .fab-stack { display: none !important; }
     font-size: 0.75rem;
     outline: none;
     box-shadow: var(--inset-neo);
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .input-row { display: flex; gap: 10px; align-items: stretch; min-width: 0; }
@@ -1235,12 +1279,4 @@ body.modal-open .fab-stack { display: none !important; }
     word-break: break-word;
     user-select: text;
     -webkit-user-select: text;
-}
-
-.preview-hint {
-    font-size: 0.65rem;
-    color: var(--text2);
-    text-align: center;
-    letter-spacing: 0.3px;
-    line-height: 1.5;
 }

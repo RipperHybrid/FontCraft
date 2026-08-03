@@ -16,7 +16,7 @@ export async function processAndFlash() {
     btn.disabled = true;
     btn.innerText = "Processing...";
     this.showTerminal();
-    this.updateTerminal("Starting Build Process...");
+    this.updateTerminal(">>> Starting Build Process...");
     await wait(100);
 
     try {
@@ -28,7 +28,7 @@ export async function processAndFlash() {
         let useLocalTemplate = false;
 
         try {
-            const checkTemplate = await this.ksuExec(`if [ -f "${CONFIG.LOCAL_TEMPLATE}" ]; then echo "exists"; fi`);
+            const checkTemplate = await this.ksuExec(`if [ -f "${CONFIG.LOCAL_TEMPLATE}" ]; then echo "exists"; else echo "not found"; fi`);
             if (checkTemplate.includes("exists")) useLocalTemplate = true;
         } catch(e) {}
 
@@ -36,19 +36,28 @@ export async function processAndFlash() {
             if (!(await checkInternet(this.ksuExec.bind(this), STATE.ROOT_BIN, STATE.BB))) throw new Error("No internet connection");
         }
 
-        this.updateTerminal("Cleaning workspace...");
+        this.updateTerminal(">>> Cleaning workspace...");
         await this.ksuExec(`mkdir -p "${moduleDir}" && rm -rf "${moduleDir}"/*`);
 
         if (useLocalTemplate) {
-            this.updateTerminal("Using Local Template...");
+            this.updateTerminal("[1/6] Using cached template (found at LOCAL_TEMPLATE)");
             await this.ksuExec(`cp "${CONFIG.LOCAL_TEMPLATE}" "${templatePath}"`);
         } else {
-            this.updateTerminal("Downloading Template...");
+            this.updateTerminal("[1/6] No cached template found, downloading fresh copy...");
             if (!(await checkInternet(this.ksuExec.bind(this), STATE.ROOT_BIN, STATE.BB))) throw new Error("No internet connection to download template");
             await this.ksuExec(`${STATE.BB} wget --no-check-certificate -O "${templatePath}" "${CONFIG.TEMPLATE_URL}"`);
+
+            this.updateTerminal(">>> Caching template for future use...");
+            const localTemplateDir = CONFIG.LOCAL_TEMPLATE.substring(0, CONFIG.LOCAL_TEMPLATE.lastIndexOf('/'));
+            try {
+                await this.ksuExec(`mkdir -p "${localTemplateDir}" && cp "${templatePath}" "${CONFIG.LOCAL_TEMPLATE}"`);
+                this.updateTerminal(`>>> Template cached at ${CONFIG.LOCAL_TEMPLATE}`);
+            } catch (e) {
+                this.updateTerminal(">>> Warning: Failed to cache template locally (non-fatal)");
+            }
         }
 
-        this.updateTerminal("Extracting Template...");
+        this.updateTerminal("[2/6] Extracting template...");
         await this.ksuExec(`sh -c "${STATE.BB} unzip -o '${templatePath}' -d '${moduleDir}'"`);
         await this.ksuExec(`mkdir -p "${moduleDir}/system/fonts"`);
 
@@ -56,45 +65,45 @@ export async function processAndFlash() {
         let emojiName = "";
 
         if (this.queue.Emoji) {
-            this.updateTerminal(`Scanning and replacing native emoji fonts...`);
+            this.updateTerminal(`[3/6] Scanning and replacing native emoji fonts...`);
 
             const emojiPath = this.queue.Emoji.path;
-            const targets = ["NotoColorEmoji.ttf", "SamsungColorEmoji.ttf", "LGColorEmoji.ttf", "HTCColorEmoji.ttf"];
+
+            const checkCmd = `for f in NotoColorEmoji.ttf SamsungColorEmoji.ttf LGColorEmoji.ttf HTCColorEmoji.ttf; do if [ -f "/system/fonts/$f" ]; then echo "$f"; fi; done`;
+            const found = await this.ksuExec(checkCmd);
+            const targets = found.split('\n').map(t => t.trim()).filter(Boolean);
+
             let injected = false;
 
             for (const target of targets) {
-                try {
-                    const check = await this.ksuExec(`if [ -f "/system/fonts/${target}" ]; then echo "exists"; fi`);
-                    if (check.includes("exists")) {
-                        await this.ksuExec(`cp "${emojiPath}" "${moduleDir}/system/fonts/${target}"`);
-                        this.updateTerminal(`Replaced: ${target}`);
-                        injected = true;
-                    }
-                } catch(e) {}
+                await this.ksuExec(`cp "${emojiPath}" "${moduleDir}/system/fonts/${target}"`);
+                this.updateTerminal(`>>> Replaced: ${target}`);
+                injected = true;
             }
 
             if (!injected) {
-                this.updateTerminal("Warning: No known native emojis found. Forcing default.");
+                this.updateTerminal(">>> Warning: No known native emojis found. Forcing default.");
                 await this.ksuExec(`cp "${emojiPath}" "${moduleDir}/system/fonts/NotoColorEmoji.ttf"`);
-                this.updateTerminal("Force installed as NotoColorEmoji.ttf");
+                this.updateTerminal(">>> Force installed as NotoColorEmoji.ttf");
             }
 
-            emojiName = this.queue.Emoji.filename.replace(/\.[^/.]+$/, "");
+            const rawEmojiName = this.queue.Emoji.filename.replace(/\.[^/.]+$/, "");
+            emojiName = rawEmojiName.replace(/[^a-zA-Z0-9-]/g, "_");
         }
 
         if (this.queue.Fonts) {
-            this.updateTerminal(`Copying Font: ${this.queue.Fonts.filename}`);
+            this.updateTerminal(`[4/6] Copying Font: ${this.queue.Fonts.filename}`);
             const fontPath = this.queue.Fonts.path;
 
             const rawFontName = this.queue.Fonts.filename.replace(/\.[^/.]+$/, "");
             fontName = rawFontName.replace(/[^a-zA-Z0-9-]/g, "_");
 
-            this.updateTerminal("Targeting default AOSP Roboto...");
+            this.updateTerminal(">>> Targeting default AOSP Roboto...");
             await this.ksuExec(`cp "${fontPath}" "${moduleDir}/system/fonts/Roboto-Regular.ttf"`);
-            this.updateTerminal("Note: Set device font to 'Default' in OS settings to see changes.");
+            this.updateTerminal(">>> Note: Set device font to 'Default' in OS settings to see changes.");
         }
 
-        this.updateTerminal("Generating Config Scripts...");
+        this.updateTerminal("[5/6] Generating Config Scripts...");
 
         let uiPrintMsg = "";
         let descMsg = "";
@@ -110,13 +119,19 @@ export async function processAndFlash() {
             descMsg = `description=🎨 [Emoji: ${emojiName}] Stylish fonts & emojis for a personalized experience`;
         }
 
-        const customizeScript = `#!/sbin/sh\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print "   FontCraft Module Builder       "\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print " "\nui_print "- ${uiPrintMsg}"\nsleep 2\nui_print " "\nif [ -d "$MODPATH/binaries" ]; then\n    chmod +x "$MODPATH"/binaries/*\n    ui_print "- ✅ Set execute permissions for all binaries."\n    ui_print " "\nfi\nui_print "◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆"\nui_print " "`;
+        const customizeScript = `#!/sbin/sh\nui_print "**************************"\nui_print "- FontCraft Module Builder       "\nui_print "**************************"\nui_print " "\nui_print "- ${uiPrintMsg}"\nsleep 2\nui_print " "\nif [ -d "$MODPATH/binaries" ]; then\n    chmod +x "$MODPATH"/binaries/*\n    ui_print "- Set execute permissions for all binaries."\n    ui_print " "\nfi\nui_print "**************************"\nui_print " "`;
 
-        await this.ksuExec(`echo '${customizeScript}' > "${moduleDir}/customize.sh"`);
-        await this.ksuExec(`printf "\\n" >> "${moduleDir}/module.prop"`);
-        await this.ksuExec(`echo "${descMsg}" >> "${moduleDir}/module.prop"`);
+        await this.ksuExec(`cat << 'EOF' > "${moduleDir}/customize.sh"\n${customizeScript}\nEOF`);
 
-        this.updateTerminal("Zipping Module...");
+        await this.ksuExec(`sed -i '/^description=/d' "${moduleDir}/module.prop"`);
+
+        if (descMsg) {
+            const descB64 = btoa(unescape(encodeURIComponent(descMsg)));
+            await this.ksuExec(`sh -c "echo '${descB64}' | ${STATE.BB} base64 -d >> '${moduleDir}/module.prop'"`);
+            await this.ksuExec(`printf "\\n" >> "${moduleDir}/module.prop"`);
+        }
+
+        this.updateTerminal(">>> Zipping Module...");
         await wait(50);
 
         const finalZip = `${CONFIG.WORK_DIR}/FontCraft_Install.zip`;
@@ -125,9 +140,8 @@ export async function processAndFlash() {
         await this.ksuExec(`cd "${moduleDir}" && ${zipBinary} -r "${finalZip}" .`);
 
         const installCmd = `${STATE.ROOT_CMD} ${STATE.INSTALL_ARGS} "${finalZip}"`;
-        this.updateTerminal("\n>>> Executing Installer");
-        this.updateTerminal(`CMD: ${installCmd}\n`);
-        this.updateTerminal(`${uiPrintMsg}...`);
+        this.updateTerminal("\n>>> [6/6] Executing Installer");
+        this.updateTerminal(`>>> CMD: ${installCmd}\n`);
         await wait(50);
 
         const results = await this.ksuExec(installCmd);
@@ -159,6 +173,7 @@ export async function processAndFlash() {
         this.updateTerminal(">>> Workspace cleared.");
 
         document.getElementById('termCloseBtn').style.display = 'block';
+        document.getElementById('termRebootBtn').style.display = 'inline-flex';
         document.getElementById('rebootFab').classList.remove('hidden');
 
         btn.innerText = originalText;
