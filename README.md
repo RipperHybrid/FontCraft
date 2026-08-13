@@ -52,13 +52,6 @@ To keep the core engine lightweight, all fonts, emojis, and their visual preview
 
 ---
 
-## 🚀 Roadmap
-
-* [x] **Custom Repository URL Support**
-* [x] **Offline Storage File Picker**
-* [x] **Magisk, KernelSU & APatch UI Integration**
-* [x] **Expand Core Font Sources**
-
 ## 📥 Usage Guide
 
 **1. Initial Setup (Flashing)**

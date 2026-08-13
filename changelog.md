@@ -1,25 +1,15 @@
-# FontCraft v7.4
+# FontCraft v7.5
 
-### 🔐 Download Integrity
+### ⬇️ Download Management & UI Overhaul
 
-* **SHA256 Verification:** WebUI and CLI now verify downloads against the JSON manifest's `sha256` value, auto-rejecting corrupted/tampered files. Verified items show a `SHA ✓` badge.
+* **Global Download Tracking:** Progress tracking has been liberated from the modal. Live download stats now render directly on the main grid cards and queue slots. You can safely close the modal, navigate the UI, and reopen the active download view on demand.
+* **Live Cancellation:** Engineered a dedicated 'Cancel' action for active downloads. It immediately snipes the background `wget` PID or aborts the browser stream, instantly wiping the partial file from the workspace.
 
-### 🧹 Cleaner Boot & Service Behavior
+### ⏱️ Network Resilience
 
-* **Consolidated Cleanup:** `CLEANUP_WEBUI` moved into `utils.sh`, shared by boot (`service.sh`) and a new **Clean WebUI** option in the Action Menu.
-* **Scoped GMS Cleaning:** Now runs at install/flash time instead of every boot.
+* **Stall Detection:** Background downloads now actively monitor byte increments. If a download stagnates for 25 seconds with zero incoming data, the system auto-kills the zombie process and alerts the user.
+* **Aggressive Timeouts:** Wrapped all network hooks (JSON fetches, mirror checks, ping tests) in strict `withTimeout` logic to prevent infinite UI hangs on dead connections.
 
-### 🎛 Settings & Source Management
+### 🧹 Script Optimization
 
-* **Persistent Custom Source:** Custom library URL/repo now saved via `localStorage`.
-* **Args Edit Modal:** Install command arguments now edited via modal instead of a live input.
-* **Smarter "Current" Detection:** Reads the module's actual `description=` field rather than relying on update-pending state.
-
-### 🐞 Debug Console
-
-* **Readable Logs:** Noisy output (base64 dumps, repetitive results) summarized into readable labels.
-* **Environment Info:** Device model, Android version, and root manager version logged on startup.
-
-### 🖥 UI Polish
-
-* File sizes shown in download list; reduced unnecessary grid re-animations; added terminal Reboot button.
+* **Deferred GMS Cleaning:** Relocated `gms_cleaner` execution. It now runs at the end of each selection path instead of at startup, preventing early installation freezes before the menu is displayed.

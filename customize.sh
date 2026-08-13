@@ -216,6 +216,7 @@ select_mode() {
                 log "WebUI Listening on http://127.0.0.1:$LAUNCH_PORT"
                 log "Opening browser..."
                 su 2000 -c "cmd activity start -a android.intent.action.VIEW -d 'http://127.0.0.1:$LAUNCH_PORT/#$LAUNCH_TOKEN'" >/dev/null 2>&1
+                gms_cleaner
             else
                 log "WebUI failed to start! Please use CLI Mode."
                 abort
@@ -228,6 +229,7 @@ select_mode() {
             rm -rf /cache/Template/ && mv "$MODPATH/Template" /cache/
             run_cli_selection "Emoji" "emoji"
             modify_prop -s "description" "🎨 [Emoji: $emoji] Stylish fonts & emojis for a personalized experience" "$MODPATH/module.prop"
+            gms_cleaner
             ;;
         3)
             log "Selected Mode: CLI - Fonts"
@@ -236,19 +238,19 @@ select_mode() {
             rm -rf /cache/Template/ && mv "$MODPATH/Template" /cache/
             run_cli_selection "Fonts" "font"
             modify_prop -s "description" "🎨 [Font: $font] Stylish fonts & emojis for a personalized experience" "$MODPATH/module.prop"
+            gms_cleaner
             ;;
         4)
             log "Selected Mode: CLI - Both"
             log "Downloading latest font info JSON..."
             download_tools
             rm -rf /cache/Template/ && mv "$MODPATH/Template" /cache/
-
             log "Select A Font"
             run_cli_selection "Fonts" "font"
             log "Select An Emoji"
             run_cli_selection "Emoji" "emoji"
-
             modify_prop -s "description" "🎨 [Font: $font | Emoji: $emoji] Stylish fonts & emojis for a personalized experience" "$MODPATH/module.prop"
+            gms_cleaner
             ;;
         5)
             log "Action cancelled by user. Exiting..."
@@ -258,7 +260,6 @@ select_mode() {
 }
 
 check_existing_install
-gms_cleaner
 setup_binaries
 ui_print "#############################################"
 ui_print "            Menu Navigation:                     "

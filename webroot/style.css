@@ -7,6 +7,10 @@
     -webkit-user-select: none;
 }
 
+button:focus, input:focus, textarea:focus, .custom-select-trigger:focus {
+    outline: none;
+}
+
 :root {
     --bg0: #12161c;
     --bg1: #181e25;
@@ -589,6 +593,7 @@ body {
 .download-action-btn {
     background: var(--bg2);
     border: none;
+    outline: none;
     border-radius: var(--radius-pill);
     color: var(--cyan);
     padding: 8px 14px;
@@ -600,6 +605,12 @@ body {
     box-shadow: var(--shadow-clay-sm);
     transition: all 0.2s;
     flex-shrink: 0;
+}
+
+.download-action-btn:focus,
+.download-action-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-clay-sm);
 }
 
 .download-action-btn:active {
@@ -1279,4 +1290,14 @@ body.modal-open .fab-stack { display: none !important; }
     word-break: break-word;
     user-select: text;
     -webkit-user-select: text;
+}
+.queue-slot.downloading {
+    cursor: pointer;
+    box-shadow: var(--inset-neo), 0 0 0 1px rgba(77,184,255,0.25);
+}
+.queue-slot.downloading:active {
+    transform: scale(0.98);
+}
+.queue-slot.downloading .status-badge {
+    color: var(--cyan);
 }

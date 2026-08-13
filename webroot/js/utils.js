@@ -2,6 +2,14 @@ import { MODULE_PATH } from './config.js';
 
 export const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+export function withTimeout(promise, ms, label = "Operation") {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 export function showToast(message, type = 'info', duration = 3000) {
     let container = document.getElementById('toast-container');
     if (!container) {
@@ -182,7 +190,7 @@ export function formatSize(bytes) {
 export async function checkInternet(ksuExecFn, rootBin, bbPath) {
     if (typeof ksu === 'undefined' && !rootBin) return navigator.onLine;
     try {
-        await ksuExecFn(`${bbPath} ping -c 1 8.8.8.8`);
+        await withTimeout(ksuExecFn(`${bbPath} ping -c 1 -W 2 8.8.8.8`), 6000, "Connectivity check");
         return true;
     } catch (e) {
         return false;
@@ -204,7 +212,7 @@ export function arrayBufferToBase64(buffer) {
     return window.btoa(binary);
 }
 
-export async function downloadViaBrowserBridge(url, destPath, ksuExecFn, progressCallback) {
+export async function downloadViaBrowserBridge(url, destPath, ksuExecFn, progressCallback, shouldAbort = () => false) {
     const response = await fetch(url);
     if (!response.ok) throw new Error("Network error");
     const reader = response.body.getReader();
@@ -214,6 +222,10 @@ export async function downloadViaBrowserBridge(url, destPath, ksuExecFn, progres
     let buffer = new Uint8Array(0);
 
     while (true) {
+        if (shouldAbort()) {
+            try { reader.cancel(); } catch (e) {}
+            throw new Error("Download cancelled");
+        }
         const { done, value } = await reader.read();
         if (done) {
             if (buffer.length > 0) {
@@ -239,12 +251,17 @@ export async function downloadViaBrowserBridge(url, destPath, ksuExecFn, progres
     }
 }
 
-export async function loggedFetch(url, options = {}, commandHistory = []) {
+export async function loggedFetch(url, options = {}, commandHistory = [], timeoutMs = 15000) {
     const method = options.method || 'GET';
     const label = `[fetch] ${method} ${url}`;
     const start = Date.now();
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const mergedOptions = { ...options, signal: options.signal || controller.signal };
+
     try {
-        const response = await fetch(url, options);
+        const response = await fetch(url, mergedOptions);
         const ms = Date.now() - start;
         commandHistory.push({
             command: label,
@@ -255,31 +272,34 @@ export async function loggedFetch(url, options = {}, commandHistory = []) {
         return response;
     } catch (e) {
         const ms = Date.now() - start;
+        const isTimeout = e.name === 'AbortError';
         commandHistory.push({
             command: label,
             output: "",
-            error: `${e.name}: ${e.message} (${ms}ms)`,
+            error: isTimeout ? `Timed out after ${timeoutMs / 1000}s (${ms}ms)` : `${e.name}: ${e.message} (${ms}ms)`,
             time: new Date().toLocaleString()
         });
-        throw e;
+        throw isTimeout ? new Error(`Request timed out after ${timeoutMs / 1000}s`) : e;
+    } finally {
+        clearTimeout(timer);
     }
 }
 
 export async function rootFetchText(url, ksuExecFn, bbPath) {
-    const cmd = `sh -c "${bbPath} wget --no-check-certificate -q -O - '${url}'"`;
-    return await ksuExecFn(cmd);
+    const cmd = `sh -c "${bbPath} wget --no-check-certificate --timeout=12 --tries=1 -q -O - '${url}'"`;
+    return await withTimeout(ksuExecFn(cmd), 16000, "Root fetch");
 }
 
 export async function rootCheckUrl(url, ksuExecFn, bbPath) {
-    const cmd = `sh -c "${bbPath} wget --no-check-certificate --spider -q '${url}'; echo \\$?"`;
-    const result = await ksuExecFn(cmd);
+    const cmd = `sh -c "${bbPath} wget --no-check-certificate --timeout=10 --tries=1 --spider -q '${url}'; echo \\$?"`;
+    const result = await withTimeout(ksuExecFn(cmd), 14000, "Root reachability check");
     return result.trim() === "0";
 }
 
 export async function resilientFetchJson(url, ksuExecFn, bbPath, commandHistory = []) {
     let browserError = null;
     try {
-        const response = await loggedFetch(url, { cache: "no-store" }, commandHistory);
+        const response = await loggedFetch(url, { cache: "no-store" }, commandHistory, 12000);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return await response.json();
     } catch (e) {
@@ -305,7 +325,7 @@ export async function resilientCheckUrl(url, ksuExecFn, bbPath, commandHistory =
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
-        const response = await loggedFetch(url, { method: 'HEAD', signal: controller.signal, cache: "no-store" }, commandHistory);
+        const response = await loggedFetch(url, { method: 'HEAD', signal: controller.signal, cache: "no-store" }, commandHistory, 10000);
         clearTimeout(timeoutId);
         if (response.ok) return true;
     } catch (e) {}

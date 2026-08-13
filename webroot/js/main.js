@@ -1,8 +1,12 @@
 import { CONFIG, STATE, MODULE_PATH } from './config.js';
-import { ksuExec, wait, showToast, formatSize, checkInternet, cleanupWorkspace, downloadViaBrowserBridge, resilientFetchJson, resilientCheckUrl, getDeviceInfo, getRootVersion } from './utils.js';
+import { ksuExec, wait, showToast, formatSize, checkInternet, cleanupWorkspace, downloadViaBrowserBridge, resilientFetchJson, resilientCheckUrl, getDeviceInfo, getRootVersion, withTimeout } from './utils.js';
 import { processAndFlash } from './flasher.js';
 import { StylizeTextIcons } from './icons.js';
 import { detectStorageVolumes, openCustomFilePicker, closeCustomFilePicker, updateFileBrowserPath, createFileItemElement, listFilesInPath, handleFileBrowserClick, handleFilePathClick, handleFileBrowserBack } from './files.js';
+
+const SIZE_CHECK_TIMEOUT_MS = 15000;
+const PID_CHECK_TIMEOUT_MS = 8000;
+const STALL_TIMEOUT_MS = 25000;
 
 class FontCraftUI {
     constructor() {
@@ -34,6 +38,8 @@ class FontCraftUI {
         this.updatePending = false;
         this.hasCurrentFont = false;
         this.hasCurrentEmoji = false;
+
+        this.activeDownloads = { Emoji: null, Fonts: null };
 
         this.detectStorageVolumes = detectStorageVolumes.bind(this);
         this.openCustomFilePicker = openCustomFilePicker.bind(this);
@@ -417,20 +423,13 @@ class FontCraftUI {
         });
 
         document.querySelector('#installModal .close-modal').addEventListener('click', () => {
-            const modal = document.getElementById('installModal');
-            if (!modal.classList.contains('locked')) {
-                modal.classList.remove('active');
-                this.toggleBodyLock(false);
-            }
+            this.hideInstallModal();
         });
         document.querySelectorAll('.modal-box').forEach(box => {
             box.addEventListener('click', (e) => e.stopPropagation());
         });
         document.getElementById('installModal').addEventListener('click', (e) => {
-            if (e.target.id === 'installModal' && !e.target.classList.contains('locked')) {
-                e.target.classList.remove('active');
-                this.toggleBodyLock(false);
-            }
+            if (e.target.id === 'installModal') this.hideInstallModal();
         });
         document.getElementById('fileSelectorModal').addEventListener('click', (e) => {
             if (e.target.id === 'fileSelectorModal') this.closeCustomFilePicker();
@@ -478,6 +477,13 @@ class FontCraftUI {
                 }
             }
         });
+    }
+
+    hideInstallModal() {
+        const modal = document.getElementById('installModal');
+        modal.classList.remove('active');
+        modal.classList.remove('locked');
+        this.toggleBodyLock(false);
     }
 
     scrollToTop() {
@@ -596,6 +602,7 @@ class FontCraftUI {
 
             const selectedItem = this.queue[category];
             const isLocalItem = selectedItem && selectedItem.isLocal;
+            const activeDl = this.activeDownloads[category];
 
             let buttonText = 'Select .ttf';
             let sizeText = '<div class="card-size">Not Selected</div>';
@@ -603,7 +610,15 @@ class FontCraftUI {
             let btnAction = `window.fontUI.selectAndAddCustomFont('${category}')`;
             let actionHtml = '';
 
-            if (selectedItem) {
+            if (activeDl) {
+                buttonText = 'View Download';
+                const progress = activeDl.receivedLabel
+                    ? (activeDl.totalLabel ? `${activeDl.receivedLabel} / ${activeDl.totalLabel}` : activeDl.receivedLabel)
+                    : 'Starting…';
+                sizeText = `<div class="card-size">${this.escapeHtml(activeDl.filename.replace(/\.[^/.]+$/, ""))} — ${progress}</div>`;
+                btnStyle = 'background: rgba(77,184,255,0.08); border-color: rgba(77,184,255,0.3); color: var(--cyan);';
+                actionHtml = `<button class="install-btn" onclick="window.fontUI.reopenActiveDownload('${category}')" style="${btnStyle}">${buttonText}</button>`;
+            } else if (selectedItem) {
                 if (isLocalItem) {
                     buttonText = selectedItem.filename.replace(/\.[^/.]+$/, "");
                     if (selectedItem.size) sizeText = `<div class="card-size">${selectedItem.size}</div>`;
@@ -676,8 +691,27 @@ class FontCraftUI {
         });
     }
 
+    reopenActiveDownload(category) {
+        const dl = this.activeDownloads[category];
+        if (!dl) {
+            this.showToast("No active download to show", 'info');
+            return;
+        }
+        if (this.data && this.data[category] && this.data[category][dl.folderName]) {
+            this.openInstallModal(category, dl.folderName);
+        } else {
+            this.showToast(`Downloading: ${dl.filename}`, 'info');
+        }
+    }
+
     async openInstallModal(category, folderName) {
-        if (this.queue[category] !== null) {
+        const activeDl = this.activeDownloads[category];
+        if (activeDl && activeDl.folderName !== folderName) {
+            this.showToast(`A ${category} is already downloading (${activeDl.filename}). Cancel it first to pick something else.`, 'warning');
+            return;
+        }
+
+        if (this.queue[category] !== null && !activeDl) {
             this.showToast(`Already selected a ${category}. Clear it first!`, 'warning');
             const clearIt = await this.promptUserConfirmation(
                 "Clear Selection",
@@ -706,7 +740,16 @@ class FontCraftUI {
             const expectedSha = file.sha256 || '';
             const row = document.createElement('div');
             row.className = 'file-row';
-            row.innerHTML = `<span>${file.filename}${sizeLabel ? ` <span style="color:var(--text2)">(${sizeLabel})</span>` : ''}</span><button class="download-action-btn" onclick="window.fontUI.addToQueue('${category}', '${folderName}', '${file.download_url}', '${file.filename}', this, ${expectedSize}, '${expectedSha}')">Add to Queue</button>`;
+
+            if (activeDl && activeDl.filename === file.filename) {
+                const progress = activeDl.receivedLabel
+                    ? (activeDl.totalLabel ? `${activeDl.receivedLabel} / ${activeDl.totalLabel}` : activeDl.receivedLabel)
+                    : 'Starting…';
+                row.innerHTML = `<span>Downloading <span style="color:var(--cyan)">(${progress})</span></span><button class="download-action-btn" style="color:var(--red)" onclick="window.fontUI.cancelDownload('${category}')">Cancel</button>`;
+                activeDl.rowEl = row;
+            } else {
+                row.innerHTML = `<span>${file.filename}${sizeLabel ? ` <span style="color:var(--text2)">(${sizeLabel})</span>` : ''}</span><button class="download-action-btn" onclick="window.fontUI.addToQueue('${category}', '${folderName}', '${file.download_url}', '${file.filename}', this, ${expectedSize}, '${expectedSha}')">Add to Queue</button>`;
+            }
             list.appendChild(row);
         });
 
@@ -714,23 +757,48 @@ class FontCraftUI {
         this.toggleBodyLock(true);
     }
 
-    async addToQueue(category, folderName, url, filename, btnElement, expectedSize = 0, expectedSha256 = "") {
-        const modal = document.getElementById('installModal');
-        const closeBtn = modal.querySelector('.close-modal');
-        modal.classList.add('locked');
-        closeBtn.classList.add('locked');
+    async cancelDownload(category) {
+        const dl = this.activeDownloads[category];
+        if (!dl) return;
 
+        dl.cancelled = true;
+        if (dl.interval) clearInterval(dl.interval);
+
+        try {
+            if (dl.pid) {
+                await this.ksuExec(`kill -9 ${dl.pid} 2>/dev/null; true`);
+            }
+        } catch (e) {}
+        try {
+            if (dl.destPath) await this.ksuExec(`rm -f "${dl.destPath}"`);
+        } catch (e) {}
+
+        this.activeDownloads[category] = null;
+        this.showToast(`Cancelled: ${dl.filename}`, 'info');
+
+        const modal = document.getElementById('installModal');
+        modal.classList.remove('locked');
+        document.querySelector('#installModal .close-modal').classList.remove('locked');
+
+        this.updateBuildUI();
+        this.renderGrid(this.currentCategory, false);
+
+        if (modal.classList.contains('active') && document.getElementById('modalTitle').innerText === dl.folderName) {
+            this.openInstallModal(category, dl.folderName);
+        }
+    }
+
+    async addToQueue(category, folderName, url, filename, btnElement, expectedSize = 0, expectedSha256 = "") {
         if (typeof ksu === 'undefined' && !STATE.ROOT_BIN) {
             this.showToast(`[Browser Mode] Added to queue: ${filename}`, 'info');
             this.queue[category] = { name: folderName, path: `/mock/${filename}`, filename: filename };
             this.updateBuildUI();
             this.renderGrid(this.currentCategory, false);
-            this.unlockModal(modal, closeBtn);
+            this.hideInstallModal();
             return;
         }
         if (!(await checkInternet(this.ksuExec.bind(this), STATE.ROOT_BIN, STATE.BB))) {
             this.showToast("No internet connection", 'error');
-            this.unlockModal(modal, closeBtn);
             return;
         }
 
@@ -738,37 +806,83 @@ class FontCraftUI {
 
         const row = btnElement.closest('.file-row');
         const nameSpan = row ? row.querySelector('span') : null;
-        if (nameSpan) nameSpan.innerText = filename;
+        if (nameSpan) {
+            nameSpan.innerHTML = `Downloading <span style="color:var(--cyan)">(Starting…)</span>`;
+        }
 
         try { await this.ksuExec(`mkdir -p "${CONFIG.WORK_DIR}"`); } catch(e) {}
 
         const destPath = `${CONFIG.WORK_DIR}/${category}_${filename}`;
-        const originalText = btnElement.innerText;
-        btnElement.disabled = true;
-        btnElement.innerText = "Checking size...";
-        let pollInterval = null;
+
+        const dl = {
+            folderName, filename, category, destPath,
+            pid: null, expectedBytes: expectedSize,
+            receivedLabel: null, totalLabel: expectedSize > 0 ? formatSize(expectedSize) : null,
+            interval: null, cancelled: false, rowEl: row
+        };
+        this.activeDownloads[category] = dl;
+
+        const restoreButtonToAddState = () => {
+            if (!btnElement.isConnected) return;
+            btnElement.disabled = false;
+            btnElement.style.color = '';
+            btnElement.blur();
+            btnElement.onclick = () => window.fontUI.addToQueue(category, folderName, url, filename, btnElement, expectedSize, expectedSha256);
+            if (row) {
+                const span = row.querySelector('span');
+                if (span) span.innerHTML = `${this.escapeHtml(filename)}`;
+            }
+            btnElement.innerText = "Add to Queue";
+        };
+
+        btnElement.disabled = false;
+        btnElement.style.color = 'var(--red)';
+        btnElement.innerText = "Cancel";
+        btnElement.onclick = () => window.fontUI.cancelDownload(category);
+        btnElement.blur();
+
+        this.updateBuildUI();
+
         let expectedBytes = expectedSize;
 
         try {
             if (!expectedBytes) {
-                const sizeCmd = `sh -c "${STATE.BB} wget --spider --server-response '${url}' 2>&1 | ${STATE.BB} grep -i 'Content-Length' | tail -n 1 | awk '{print \\$2}' | tr -d '\\r'"`;
-                const sizeOutput = await this.ksuExec(sizeCmd);
-                expectedBytes = parseInt(sizeOutput.trim()) || 0;
+                const sizeCmd = `sh -c "${STATE.BB} wget --spider --server-response --timeout=10 --tries=1 '${url}' 2>&1 | ${STATE.BB} grep -i 'Content-Length' | tail -n 1 | awk '{print \\$2}' | tr -d '\\r'"`;
+                try {
+                    const sizeOutput = await withTimeout(this.ksuExec(sizeCmd), SIZE_CHECK_TIMEOUT_MS, "Size check");
+                    expectedBytes = parseInt(sizeOutput.trim()) || 0;
+                } catch (sizeErr) {
+                    expectedBytes = 0;
+                }
             }
+            if (dl.cancelled) return;
 
+            dl.expectedBytes = expectedBytes;
             const expectedSizeLabel = expectedBytes > 0 ? formatSize(expectedBytes) : null;
+            dl.totalLabel = expectedSizeLabel;
 
             this.showToast(`Downloading ${filename}...`, 'info');
             await this.ksuExec(`rm -f "${destPath}"`);
+            if (dl.cancelled) return;
 
-            const bgCmd = `sh -c "${STATE.BB} wget --no-check-certificate -O '${destPath}' '${url}' > /dev/null 2>&1 & echo \\$!"`;
+            const bgCmd = `sh -c "${STATE.BB} wget --no-check-certificate --timeout=20 --tries=2 -O '${destPath}' '${url}' > /dev/null 2>&1 & echo \\$!"`;
             const pidOutput = await this.ksuExec(bgCmd);
             const pid = pidOutput.trim();
 
+            if (dl.cancelled) {
+                if (pid) { try { await this.ksuExec(`kill -9 ${pid} 2>/dev/null; true`); } catch (e) {} }
+                return;
+            }
             if (!pid) throw new Error("Wget failed to start");
+            dl.pid = pid;
 
             await wait(2000);
-            const checkImmediate = await this.ksuExec(`if [ -d "/proc/${pid}" ]; then echo "running"; else echo "stopped"; fi`);
+            if (dl.cancelled) return;
+
+            const checkImmediate = await withTimeout(
+                this.ksuExec(`if [ -d "/proc/${pid}" ]; then echo "running"; else echo "stopped"; fi`),
+                PID_CHECK_TIMEOUT_MS, "Process check"
+            );
 
             if (checkImmediate.includes("stopped")) {
                 const quickSizeCmd = `sh -c "${STATE.BB} wc -c '${destPath}' | awk '{print \\$1}'"`;
@@ -776,40 +890,89 @@ class FontCraftUI {
                 if (!quickSize || parseInt(quickSize) < 100) throw new Error("Wget failed (likely HTTPS)");
             }
 
-            pollInterval = setInterval(async () => {
+            dl.lastSizeBytes = -1;
+            dl.stalledSince = null;
+
+            dl.interval = setInterval(async () => {
+                if (dl.cancelled) { clearInterval(dl.interval); return; }
                 try {
-                    const sizeCmd = `sh -c "${STATE.BB} du -h '${destPath}' | awk '{print \\$1}'"`;
-                    const size = await this.ksuExec(sizeCmd);
-                    if (size && size.trim() !== "" && !size.includes("No such")) {
-                        btnElement.innerText = expectedSizeLabel ? `DL: ${size.trim()} / ${expectedSizeLabel}` : `DL: ${size.trim()}`;
+                    const byteCmd = `sh -c "${STATE.BB} wc -c '${destPath}' 2>/dev/null | awk '{print \\$1}'"`;
+                    const rawBytes = await withTimeout(this.ksuExec(byteCmd), PID_CHECK_TIMEOUT_MS, "Progress check");
+                    const currentBytes = parseInt(rawBytes.trim()) || 0;
+
+                    if (currentBytes !== dl.lastSizeBytes) {
+                        dl.lastSizeBytes = currentBytes;
+                        dl.stalledSince = null;
+                        const label = formatSize(currentBytes);
+                        dl.receivedLabel = label;
+                        this.refreshDownloadProgressUI(category);
+                    } else if (dl.stalledSince === null) {
+                        dl.stalledSince = Date.now();
+                    } else if (Date.now() - dl.stalledSince > STALL_TIMEOUT_MS) {
+                        clearInterval(dl.interval);
+                        try { await this.ksuExec(`kill -9 ${pid} 2>/dev/null; true`); } catch (killErr) {}
+                        if (!dl.cancelled) {
+                            this.handleDownloadError(category, btnElement, "Add to Queue", `Download stalled (no progress for ${STALL_TIMEOUT_MS / 1000}s) — connection likely dropped`, restoreButtonToAddState);
+                        }
+                        return;
                     }
-                    const checkRunning = await this.ksuExec(`if [ -d "/proc/${pid}" ]; then echo "running"; else echo "stopped"; fi`);
+
+                    const checkRunning = await withTimeout(
+                        this.ksuExec(`if [ -d "/proc/${pid}" ]; then echo "running"; else echo "stopped"; fi`),
+                        PID_CHECK_TIMEOUT_MS, "Process check"
+                    );
                     if (checkRunning.includes("stopped")) {
-                        clearInterval(pollInterval);
-                        this.finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, modal, closeBtn, expectedBytes, expectedSha256);
+                        clearInterval(dl.interval);
+                        if (!dl.cancelled) {
+                            this.finalizeDownload(category, folderName, destPath, filename, btnElement, "Add to Queue", expectedBytes, expectedSha256);
+                        }
                     }
                 } catch (err) {}
             }, 1000);
 
         } catch (e) {
-            if (pollInterval) clearInterval(pollInterval);
+            if (dl.interval) clearInterval(dl.interval);
+            if (dl.cancelled) return;
             this.showToast("Wget failed, trying fallback...", 'warning');
             try {
-                btnElement.innerText = "Streaming...";
+                if (btnElement.isConnected) btnElement.innerText = "Cancel";
                 const expectedSizeLabel = expectedBytes > 0 ? formatSize(expectedBytes) : null;
                 await downloadViaBrowserBridge(url, destPath, this.ksuExec.bind(this), (bytes) => {
                     const gotLabel = `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-                    btnElement.innerText = expectedSizeLabel ? `DL: ${gotLabel} / ${expectedSizeLabel}` : `DL: ${gotLabel}`;
-                });
-                this.finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, modal, closeBtn, expectedBytes, expectedSha256);
+                    dl.receivedLabel = gotLabel;
+                    this.refreshDownloadProgressUI(category);
+                }, () => dl.cancelled);
+                if (dl.cancelled) return;
+                this.finalizeDownload(category, folderName, destPath, filename, btnElement, "Add to Queue", expectedBytes, expectedSha256);
             } catch (err2) {
-                this.handleDownloadError(btnElement, originalText, err2.message);
-                this.unlockModal(modal, closeBtn);
+                if (!dl.cancelled) {
+                    this.handleDownloadError(category, btnElement, "Add to Queue", err2.message, restoreButtonToAddState);
+                }
             }
         }
     }
 
-    async finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, modal, closeBtn, expectedBytes, expectedSha256 = "") {
+    refreshDownloadProgressUI(category) {
+        const dl = this.activeDownloads[category];
+        if (!dl) return;
+        const slotId = category === 'Fonts' ? 'fontStatus' : 'emojiStatus';
+        const statusEl = document.getElementById(slotId);
+        if (statusEl) {
+            const progress = dl.receivedLabel ? (dl.totalLabel ? `${dl.receivedLabel} / ${dl.totalLabel}` : dl.receivedLabel) : 'Starting…';
+            statusEl.innerHTML = `<span style="vertical-align:middle">${this.escapeHtml(dl.filename.replace(/\.[^/.]+$/, ""))}</span><span style="display:block; font-size:0.6rem; color:var(--cyan);">${progress}</span>`;
+        }
+        if (dl.rowEl && dl.rowEl.isConnected) {
+            const span = dl.rowEl.querySelector('span');
+            if (span) {
+                const progress = dl.receivedLabel ? (dl.totalLabel ? `${dl.receivedLabel} / ${dl.totalLabel}` : dl.receivedLabel) : 'Starting…';
+                span.innerHTML = `Downloading <span style="color:var(--cyan)">(${progress})</span>`;
+            }
+        }
+        this.updateBuildUI();
+    }
+
+    async finalizeDownload(category, folderName, destPath, filename, btnElement, originalText, expectedBytes, expectedSha256 = "") {
+        const dl = this.activeDownloads[category];
         try {
             const check = await this.ksuExec(`if [ -f "${destPath}" ]; then echo "exists"; else echo "not found"; fi`);
             if (check.includes("exists")) {
@@ -833,7 +996,7 @@ class FontCraftUI {
                 let shaVerified = false;
 
                 if (expectedSha256) {
-                    btnElement.innerText = "Verifying SHA256...";
+                    if (btnElement.isConnected) btnElement.innerText = "Verifying SHA256...";
                     const shaCmd = `sh -c "${STATE.BB} sha256sum '${destPath}' | awk '{print \\$1}'"`;
                     const shaOutput = await this.ksuExec(shaCmd);
                     const actualSha = shaOutput.trim().toLowerCase();
@@ -860,45 +1023,83 @@ class FontCraftUI {
                     shaVerified = true;
                 }
 
-                btnElement.innerText = shaVerified ? `Done (${finalSizeLabel}, SHA \u2713)` : `Done (${finalSizeLabel})`;
+                if (btnElement.isConnected) {
+                    btnElement.style.color = '';
+                    btnElement.blur();
+                    btnElement.onclick = () => window.fontUI.addToQueue(category, folderName, "", filename, btnElement, expectedBytes, expectedSha256);
+                    btnElement.innerText = shaVerified ? `Done (${finalSizeLabel}, SHA \u2713)` : `Done (${finalSizeLabel})`;
+                }
                 this.queue[category] = { name: folderName, path: destPath, filename: filename, size: finalSizeLabel };
 
                 const truncated = folderName.length > 25 ? folderName.substring(0, 22) + '...' : folderName;
                 const shortName = this.escapeHtml(truncated);
 
                 this.showToast(shaVerified ? `Verified (SHA256): ${shortName}` : `Verified: ${shortName}`, 'success');
+                this.activeDownloads[category] = null;
                 this.updateBuildUI();
                 this.renderGrid(this.currentCategory, false);
-                setTimeout(() => this.unlockModal(modal, closeBtn), 500);
+                setTimeout(() => this.hideInstallModal(), 500);
             } else throw new Error("Download failed or file empty");
         } catch (e) {
-            this.handleDownloadError(btnElement, originalText, e.message);
-            this.unlockModal(modal, closeBtn);
+            this.handleDownloadError(category, btnElement, originalText, e.message);
         }
     }
 
-    handleDownloadError(btn, originalText, msg) {
-        btn.innerText = "Failed";
-        btn.disabled = false;
+    handleDownloadError(category, btn, originalText, msg, restoreButtonToAddState = null) {
+        this.activeDownloads[category] = null;
+        if (btn && btn.isConnected) {
+            btn.style.color = '';
+            btn.innerText = "Failed";
+            btn.disabled = false;
+            btn.blur();
+            if (restoreButtonToAddState) restoreButtonToAddState();
+        }
         this.showToast(`Error: ${msg}`, 'error');
-        setTimeout(() => { btn.innerText = originalText; }, 3000);
-    }
-
-    unlockModal(modal, closeBtn) {
-        modal.classList.remove('locked');
-        closeBtn.classList.remove('locked');
-        modal.classList.remove('active');
-        this.toggleBodyLock(false);
+        this.updateBuildUI();
+        this.renderGrid(this.currentCategory, false);
+        if (btn && btn.isConnected) {
+            setTimeout(() => {
+                if (!btn.isConnected) return;
+                btn.innerText = originalText;
+                if (restoreButtonToAddState) restoreButtonToAddState();
+            }, 3000);
+        }
     }
 
     handleClearClick() {
-        const hasEmoji = this.queue.Emoji !== null;
-        const hasFont = this.queue.Fonts !== null;
-        if (hasEmoji && hasFont) {
+        const state = {
+            emojiQ: this.queue.Emoji !== null,
+            fontQ: this.queue.Fonts !== null,
+            emojiDl: this.activeDownloads.Emoji !== null,
+            fontDl: this.activeDownloads.Fonts !== null
+        };
+
+        const activeCount = (state.emojiQ ? 1 : 0) + (state.fontQ ? 1 : 0) + (state.emojiDl ? 1 : 0) + (state.fontDl ? 1 : 0);
+
+        if (activeCount === 0) return;
+
+        if (activeCount === 1) {
+            if (state.emojiQ) this.clearQueueItem('Emoji');
+            else if (state.fontQ) this.clearQueueItem('Fonts');
+            else if (state.emojiDl) this.cancelDownload('Emoji');
+            else if (state.fontDl) this.cancelDownload('Fonts');
+        } else {
+            const container = document.querySelector('#clearSelectionModal .selection-options');
+            container.innerHTML = '';
+
+            if (state.emojiQ) {
+                container.innerHTML += `<button class="selection-btn" onclick="window.fontUI.clearQueueItem('Emoji')">Clear Emoji</button>`;
+            }
+
+            if (state.fontQ) {
+                container.innerHTML += `<button class="selection-btn" onclick="window.fontUI.clearQueueItem('Fonts')">Clear Font</button>`;
+            }
+
+            container.innerHTML += `<button class="selection-btn danger" onclick="window.fontUI.clearAll()">Reset Everything</button>`;
+
             document.getElementById('clearSelectionModal').classList.add('active');
             this.toggleBodyLock(true);
-        } else if (hasEmoji) this.clearQueueItem('Emoji');
-        else if (hasFont) this.clearQueueItem('Fonts');
+        }
     }
 
     closeClearModal() {
@@ -906,16 +1107,21 @@ class FontCraftUI {
         this.toggleBodyLock(false);
     }
 
+    async clearAll() {
+        if (this.activeDownloads.Emoji) await this.cancelDownload('Emoji');
+        if (this.activeDownloads.Fonts) await this.cancelDownload('Fonts');
+        await this.deleteFile('Emoji');
+        await this.deleteFile('Fonts');
+        this.queue.Emoji = null;
+        this.queue.Fonts = null;
+        this.updateBuildUI();
+        this.renderGrid(this.currentCategory, false);
+        this.closeClearModal();
+    }
+
     async clearQueueItem(type) {
-        if (type === 'Both') {
-            await this.deleteFile('Emoji');
-            await this.deleteFile('Fonts');
-            this.queue.Emoji = null;
-            this.queue.Fonts = null;
-        } else {
-            await this.deleteFile(type);
-            this.queue[type] = null;
-        }
+        await this.deleteFile(type);
+        this.queue[type] = null;
         this.updateBuildUI();
         this.renderGrid(this.currentCategory, false);
         this.closeClearModal();
@@ -944,35 +1150,57 @@ class FontCraftUI {
 
         const hasEmoji = this.queue.Emoji !== null;
         const hasFont  = this.queue.Fonts  !== null;
+        const dlEmoji = this.activeDownloads.Emoji;
+        const dlFont = this.activeDownloads.Fonts;
+        const anyDownloading = !!(dlEmoji || dlFont);
+        const hasItems = hasEmoji || hasFont;
 
         const eyeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-left:4px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
 
-        if (hasEmoji) {
+        if (dlEmoji) {
+            const progress = dlEmoji.receivedLabel ? (dlEmoji.totalLabel ? `${dlEmoji.receivedLabel} / ${dlEmoji.totalLabel}` : dlEmoji.receivedLabel) : 'Starting…';
+            emojiStatus.innerHTML = `<span style="vertical-align:middle">${this.escapeHtml(dlEmoji.filename.replace(/\.[^/.]+$/, ""))}</span><span style="display:block; font-size:0.6rem; color:var(--cyan);">${progress}</span>`;
+            emojiSlot.classList.add('active', 'downloading');
+            emojiSlot.onclick = () => this.reopenActiveDownload('Emoji');
+        } else if (hasEmoji) {
             emojiStatus.innerHTML = `<span style="vertical-align:middle">${this.queue.Emoji.filename.replace(/\.[^/.]+$/, "")}</span>`;
             emojiSlot.classList.add('active');
+            emojiSlot.classList.remove('downloading');
+            emojiSlot.onclick = null;
         } else {
             emojiStatus.innerText = 'None';
-            emojiSlot.classList.remove('active');
+            emojiSlot.classList.remove('active', 'downloading');
+            emojiSlot.onclick = null;
         }
 
-        if (hasFont) {
-            fontStatus.innerHTML = `<span style="vertical-align:middle">${this.queue.Fonts.filename.replace(/\.[^/.]+$/, "")}</span><span style="cursor:pointer; color:var(--cyan); display:inline-block; padding:4px;" onclick="window.fontUI.openPreviewModal('Fonts')" title="Live Preview">${eyeIcon}</span>`;
+        if (dlFont) {
+            const progress = dlFont.receivedLabel ? (dlFont.totalLabel ? `${dlFont.receivedLabel} / ${dlFont.totalLabel}` : dlFont.receivedLabel) : 'Starting…';
+            fontStatus.innerHTML = `<span style="vertical-align:middle">${this.escapeHtml(dlFont.filename.replace(/\.[^/.]+$/, ""))}</span><span style="display:block; font-size:0.6rem; color:var(--cyan);">${progress}</span>`;
+            fontSlot.classList.add('active', 'downloading');
+            fontSlot.onclick = () => this.reopenActiveDownload('Fonts');
+        } else if (hasFont) {
+            fontStatus.innerHTML = `<span style="vertical-align:middle">${this.queue.Fonts.filename.replace(/\.[^/.]+$/, "")}</span><span style="cursor:pointer; color:var(--cyan); display:inline-block; padding:4px;" onclick="window.fontUI.openPreviewModal('Fonts'); event.stopPropagation();" title="Live Preview">${eyeIcon}</span>`;
             fontSlot.classList.add('active');
+            fontSlot.classList.remove('downloading');
+            fontSlot.onclick = null;
         } else {
             fontStatus.innerText = 'None';
-            fontSlot.classList.remove('active');
+            fontSlot.classList.remove('active', 'downloading');
+            fontSlot.onclick = null;
         }
 
-        if (hasEmoji || hasFont) {
+        if (hasItems || anyDownloading) {
             clearContainer.innerHTML = `<button class="clear-btn" onclick="window.fontUI.handleClearClick()" title="Clear Selection">${StylizeTextIcons.getClearIcon()}</button>`;
         } else {
             clearContainer.innerHTML = '';
         }
 
-        const hasItems = hasEmoji || hasFont;
-        flashBtn.disabled = !hasItems;
+        flashBtn.disabled = !hasItems || anyDownloading;
 
-        if (hasItems) {
+        if (hasItems && anyDownloading) {
+            flashBtn.classList.remove('ready');
+            flashBtn.innerHTML = '&#9889; Ongoing Download...';
+        } else if (hasItems) {
             flashBtn.classList.add('ready');
             const count = (hasEmoji ? 1 : 0) + (hasFont ? 1 : 0);
             flashBtn.innerHTML = `&#9889; Flash Module (${count} item${count > 1 ? 's' : ''})`;
@@ -1158,13 +1386,21 @@ class FontCraftUI {
             targetName = this.selectedMirrorName;
         }
 
+        const trigger = document.getElementById('mirrorSelectTrigger');
+        const applyBtn = document.querySelector('.settings-action-btn');
         try {
-            document.getElementById('mirrorSelectTrigger').style.pointerEvents = 'none';
+            trigger.style.pointerEvents = 'none';
             customInput.disabled = true;
+            if (applyBtn) applyBtn.innerText = 'Checking...';
 
-            if (!(await checkInternet(this.ksuExec.bind(this), STATE.ROOT_BIN, STATE.BB))) throw new Error("No internet connection");
+            if (!(await withTimeout(checkInternet(this.ksuExec.bind(this), STATE.ROOT_BIN, STATE.BB), 8000, "Connectivity check"))) {
+                throw new Error("No internet connection");
+            }
 
-            const data = await resilientFetchJson(targetUrl, this.ksuExec.bind(this), STATE.BB, this.commandHistory);
+            const data = await withTimeout(
+                resilientFetchJson(targetUrl, this.ksuExec.bind(this), STATE.BB, this.commandHistory),
+                20000, "Source check"
+            );
             if (!data.Fonts && !data.Emoji) throw new Error("JSON missing Fonts or Emoji keys");
 
             this.activeJsonUrl = targetUrl;
@@ -1180,8 +1416,9 @@ class FontCraftUI {
         } catch (e) {
             this.showToast(`Error: ${e.message}`, 'error');
         } finally {
-            document.getElementById('mirrorSelectTrigger').style.pointerEvents = 'auto';
+            trigger.style.pointerEvents = 'auto';
             customInput.disabled = false;
+            if (applyBtn) applyBtn.innerText = 'Apply';
         }
     }
 
