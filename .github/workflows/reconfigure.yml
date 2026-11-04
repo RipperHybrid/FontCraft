@@ -1,40 +1,95 @@
 name: Build & Release
 
 on:
-  push:
-    branches:
-      - Master
   workflow_dispatch:
-
-permissions:
-  contents: write
+    inputs:
+      deployment_type:
+        description: 'normal = skip if tag exists | overwrite = recreate'
+        required: true
+        default: 'normal'
+        type: choice
+        options:
+          - normal
+          - overwrite
 
 jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preflight GitLab Check
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          set -e
+          if [ -z "$GITLAB_TOKEN" ]; then
+            echo "::error::GITLAB_TOKEN secret is empty or not set"
+            exit 1
+          fi
+          if ! git ls-remote "https://oauth2:${GITLAB_TOKEN}@gitlab.com/RipperHybrid/FontCraft.git" > /dev/null 2>&1; then
+            echo "::error::Cannot reach gitlab.com/RipperHybrid/FontCraft.git with the provided GITLAB_TOKEN"
+            exit 1
+          fi
+          echo "GitLab preflight OK"
+
+      - name: Push to GitLab
+        env:
+          TARGET_REPO: "gitlab.com/RipperHybrid/FontCraft.git"
+        run: |
+          git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@${{ env.TARGET_REPO }} || true
+          git push gitlab --all --force
+          git push gitlab --tags --force
+
   release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Push to GitLab
-        continue-on-error: true
+      - name: Extract Metadata and Check Release
+        id: metadata
         env:
-          TARGET_REPO: "gitlab.com/RipperHybrid/FontCraft.git"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@${{ env.TARGET_REPO }}
-          git push gitlab HEAD:${{ github.ref_name }} --force
-          git push gitlab --tags --force
+          RAW_VERSION=$(grep -oP '^version=\K.*' module.prop | tr -d '\r')
+          VERSION=${RAW_VERSION#v}
+          TAG="v$VERSION"
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            if [ "${{ github.event.inputs.deployment_type }}" = "normal" ]; then
+              echo "Release $TAG already exists and deployment_type is normal, skipping"
+              echo "skip=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "filename=FontCraftPro_V${VERSION}_By_RipperHybrid.zip" >> $GITHUB_OUTPUT
+
+          if [ -f "changelog.md" ] && grep -q '[^[:space:]]' changelog.md; then
+            cp changelog.md release_body.md
+            echo "body_file=release_body.md" >> $GITHUB_OUTPUT
+          else
+            echo "commit: $COMMIT_MSG" > release_msg.txt
+            echo "body_file=release_msg.txt" >> $GITHUB_OUTPUT
+          fi
 
       - name: Setup Node.js
+        if: steps.metadata.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Build Production WebUI
+        if: steps.metadata.outputs.skip != 'true'
         run: |
           cd webroot
           npm install
@@ -43,6 +98,7 @@ jobs:
           cd ..
 
       - name: Generate template.zip
+        if: steps.metadata.outputs.skip != 'true'
         run: |
           mkdir -p Template_Build
           cp -r binaries META-INF action.sh module.prop monitor.sh service.sh utils.sh uninstall.sh Template_Build/
@@ -54,47 +110,37 @@ jobs:
           mv template.zip Template/
 
       - name: Prepare Master Folder
+        if: steps.metadata.outputs.skip != 'true'
         run: |
           mkdir -p Master_Staging
           cp -r binaries META-INF Template action.sh customize.sh utils.sh monitor.sh module.prop service.sh uninstall.sh Master_Staging/
           cp -r webroot/dist Master_Staging/webroot
 
-      - name: Extract Metadata from module.prop
-        id: metadata
-        run: |
-          RAW_VERSION=$(grep -oP '^version=\K.*' module.prop | tr -d '\r')
-          VERSION=${RAW_VERSION#v}
-          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "filename=FontCraftPro_V${VERSION}_By_RipperHybrid.zip" >> $GITHUB_OUTPUT
-          if [ -f "changelog.md" ]; then
-            echo "body_file=changelog.md" >> $GITHUB_OUTPUT
-          else
-            COMMIT_MSG=$(git log -1 --pretty=%B)
-            echo "$COMMIT_MSG" > release_msg.txt
-            echo "body_file=release_msg.txt" >> $GITHUB_OUTPUT
-          fi
-
       - name: Create Release Zip
+        if: steps.metadata.outputs.skip != 'true'
         run: |
           cd Master_Staging
           zip -r ../${{ steps.metadata.outputs.filename }} .
           cd ..
 
       - name: Check for Edit and Append Footer
+        if: steps.metadata.outputs.skip != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ steps.metadata.outputs.tag }}"
           BODY_FILE="${{ steps.metadata.outputs.body_file }}"
+
           if gh release view "$TAG" > /dev/null 2>&1; then
             NOW_DATE=$(date +'%Y-%m-%d')
             NOW_TIME=$(date +'%H:%M:%S')
+
             echo "" >> "$BODY_FILE"
             echo "- Edited: Date: $NOW_DATE Time: $NOW_TIME" >> "$BODY_FILE"
           fi
 
       - name: Upload to GitHub Release
+        if: steps.metadata.outputs.skip != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.metadata.outputs.tag }}
@@ -106,48 +152,87 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Force Update GitHub Release Title and Body
+        if: steps.metadata.outputs.skip != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.metadata.outputs.tag }}
+          VERSION: ${{ steps.metadata.outputs.version }}
+          BODY_FILE: ${{ steps.metadata.outputs.body_file }}
+        run: |
+          gh release edit "$TAG" \
+            --title "FontCraft Pro Module - Version ${VERSION} Changelog" \
+            --notes-file "$BODY_FILE"
+
+      - name: Create GitLab Release
+        if: steps.metadata.outputs.skip != 'true'
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITLAB_HOST: gitlab.com
+          REPO: "RipperHybrid/FontCraft"
+          TAG: ${{ steps.metadata.outputs.tag }}
+          VERSION: ${{ steps.metadata.outputs.version }}
+          ZIP_NAME: ${{ steps.metadata.outputs.filename }}
+          BODY_FILE: ${{ steps.metadata.outputs.body_file }}
+        run: |
+          curl -sSL "https://gitlab.com/gitlab-org/cli/-/releases/v1.58.0/downloads/glab_1.58.0_linux_amd64.tar.gz" \
+            | tar -xz -C /tmp
+          sudo mv /tmp/bin/glab /usr/local/bin/glab
+
+          if glab release view "$TAG" --repo "$REPO" > /dev/null 2>&1; then
+            echo "Existing GitLab release for $TAG found, deleting so it can be recreated"
+            glab release delete "$TAG" --repo "$REPO" --yes || true
+          fi
+
+          glab release create "$TAG" \
+            --repo "$REPO" \
+            --name "FontCraft Pro Module - Version ${VERSION} Changelog" \
+            --notes-file "$BODY_FILE" \
+            "$ZIP_NAME"
+
       - name: Send to Telegram
         continue-on-error: true
-        if: always()
+        if: always() && steps.metadata.outputs.skip != 'true'
         env:
-          BOT_TOKEN: ${{ secrets.BOTAPI }}
-          CHAT_ID: ${{ secrets.CHANNEL }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.MAIN_BUILDS }}
           ZIP_NAME: ${{ steps.metadata.outputs.filename }}
           REPO_SLUG: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
-          COMMIT_HASH: ${{ github.sha }}
-          EVENT_NAME: ${{ github.event_name }}
           SERVER_URL: ${{ github.server_url }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          GITLAB_REPO: "RipperHybrid/FontCraft"
         run: |
-          if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ]; then
-            exit 0
-          fi
-          if [ ! -f "$ZIP_NAME" ]; then
-            exit 1
-          fi
-          COMMIT_SUBJECT=$(git log -1 --pretty=%s)
-          COMMIT_BODY=$(git log -1 --pretty=%b)
-          if [ -n "$COMMIT_BODY" ]; then
-            RAW_CAPTION=$(printf '%s\n\n%s' "$COMMIT_SUBJECT" "$COMMIT_BODY")
+          [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ] && exit 0
+          [ ! -f "$ZIP_NAME" ] && exit 1
+
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          printf 'commit: %s' "$COMMIT_MSG" > /tmp/tg_raw.txt
+          RAW_LEN=$(wc -m < /tmp/tg_raw.txt)
+
+          if [ "$RAW_LEN" -ge 1024 ]; then
+            RAW_TEXT=$(cat /tmp/tg_raw.txt)
+            TRUNCATED="${RAW_TEXT:0:950}"
+            CLEANED=$(printf '%s' "$TRUNCATED" | sed -zE 's/[[:space:]#.,*-]+$//')
+            printf '%s....(truncated — see full commit via button below)' "$CLEANED" > /tmp/tg_caption.txt
           else
-            RAW_CAPTION="$COMMIT_SUBJECT"
+            cp /tmp/tg_raw.txt /tmp/tg_caption.txt
           fi
-          if [ ${#RAW_CAPTION} -ge 1024 ]; then
-            RAW_CAPTION=$(printf '%s\n\n%s' "${RAW_CAPTION:0:950}" "... (truncated due to Telegram limit)")
-          fi
-          printf '%s' "$RAW_CAPTION" > /tmp/tg_caption.txt
-          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
-            BTN_TEXT="Manual Run ⚡️"
-            BTN_URL="${SERVER_URL}/${REPO_SLUG}/actions/runs/${RUN_ID}"
-          else
-            BTN_TEXT="View Changelog 📋"
-            BTN_URL="${SERVER_URL}/${REPO_SLUG}/commit/${COMMIT_HASH}"
-          fi
-          REPO_URL="${SERVER_URL}/${REPO_SLUG}"
-          KEYBOARD_JSON="{\"inline_keyboard\":[[{\"text\":\"$BTN_TEXT\",\"url\":\"$BTN_URL\"},{\"text\":\"Repo 🏠\",\"url\":\"$REPO_URL\"}]]}"
+
+          BTN_TEXT="Manual Run ⚡️"
+          BTN_URL="${SERVER_URL}/${REPO_SLUG}/actions/runs/${RUN_ID}"
+
+          GITHUB_URL="${SERVER_URL}/${REPO_SLUG}"
+          CHANGELOG_URL="${SERVER_URL}/${REPO_SLUG}/blob/${BRANCH_NAME}/changelog.md"
+          GITLAB_URL="https://gitlab.com/${GITLAB_REPO}"
+
+          KEYBOARD_JSON=$(printf \
+            '{"inline_keyboard":[[{"text":"%s","url":"%s"},{"text":"Changelog 📝","url":"%s"}],[{"text":"GitHub 🐙","url":"%s"},{"text":"GitLab 🦊","url":"%s"}]]}' \
+            "$BTN_TEXT" "$BTN_URL" "$CHANGELOG_URL" "$GITHUB_URL" "$GITLAB_URL")
+
           curl -s \
                -F "chat_id=$CHAT_ID" \
-               -F "document=@$ZIP_NAME" \
+               -F "document=@${ZIP_NAME}" \
                -F "caption=</tmp/tg_caption.txt" \
                -F "reply_markup=$KEYBOARD_JSON" \
-               "https://api.telegram.org/bot$BOT_TOKEN/sendDocument"
+               "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"

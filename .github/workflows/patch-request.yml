@@ -1,0 +1,145 @@
+name: Font Patch Request
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  FONTLIB_REPO: RipperHybrid/FontLib
+  FONTLIB_BRANCH: Master
+
+jobs:
+  patch:
+    if: startsWith(github.event.issue.title, '[Font Patch]')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Install FontForge & fontTools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fontforge python3-fontforge python3-fonttools
+          echo "PYTHONPATH=/usr/lib/python3/dist-packages" >> $GITHUB_ENV
+
+      - name: Fetch Script And Donor From FontLib
+        env:
+          GHTOKEN: ${{ secrets.GHTOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p .github/scripts
+          curl -fsSL -H "Authorization: token ${GHTOKEN}" -o .github/scripts/patch_fonts.py "https://raw.githubusercontent.com/${FONTLIB_REPO}/${FONTLIB_BRANCH}/.github/scripts/patch_fonts.py"
+          curl -fsSL -H "Authorization: token ${GHTOKEN}" -o /tmp/donor-Roboto-Regular.ttf "https://raw.githubusercontent.com/${FONTLIB_REPO}/${FONTLIB_BRANCH}/Fonts/Roboto-Regular/Roboto-Regular.ttf"
+
+      - name: Patch Submitted Zip
+        id: patch
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          PYTHONPATH: /usr/lib/python3/dist-packages
+        run: |
+          mkdir -p result
+          fontforge -lang=py -script .github/scripts/patch_fonts.py 2>&1 | grep -vE "Bad device table|unexpected size for an instance" | tee result/log.txt || true
+          if [ -f result/report.md ]; then
+            echo "OUTCOME=patched" >> $GITHUB_ENV
+            ZIP_NAME=$(grep "^zip_name=" $GITHUB_OUTPUT | cut -d'=' -f2)
+            echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+          else
+            echo "OUTCOME=rejected" >> $GITHUB_ENV
+          fi
+
+      - name: Publish Patched Zip To FontLib
+        id: publish
+        if: env.OUTCOME == 'patched'
+        env:
+          GHTOKEN: ${{ secrets.GHTOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          rm -rf out && mkdir out && cd out
+          git init -q
+          git remote add origin "https://x-access-token:${GHTOKEN}@github.com/${FONTLIB_REPO}.git"
+          DEST="patched/fontcraft-${ISSUE_NUMBER}"
+          pushed=0
+          for attempt in 1 2 3; do
+            if git fetch --depth=1 origin patched-fonts; then
+              git checkout -q -B patched-fonts FETCH_HEAD
+            else
+              git checkout -q -B patched-fonts
+            fi
+            mkdir -p "$DEST"
+            cp "../result/${ZIP_NAME}" "$DEST/${ZIP_NAME}"
+            git add "$DEST"
+            git commit -q -m "Add patched fonts for FontCraft issue #${ISSUE_NUMBER} [skip ci]"
+            if git push -q origin HEAD:patched-fonts; then
+              pushed=1
+              break
+            fi
+            sleep 3
+          done
+          [ "$pushed" = "1" ] || exit 1
+          cd ..
+          echo "url=https://raw.githubusercontent.com/${FONTLIB_REPO}/patched-fonts/${DEST}/${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Reply And Close
+        env:
+          GH_TOKEN: ${{ secrets.GHTOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          OUTCOME: ${{ env.OUTCOME }}
+          ZIP_URL: ${{ steps.publish.outputs.url }}
+        run: |
+          set -euo pipefail
+          F=$(printf '\140\140\140')
+          NEW_URL="https://github.com/${GITHUB_REPOSITORY}/issues/new?template=font-patch.md"
+          PROBLEM_URL="https://github.com/${GITHUB_REPOSITORY}/issues/new?template=problem-report.md"
+          {
+            printf '### 🤖 Automated reply\n\n'
+            printf 'This message was posted automatically by the Font Patch workflow (GitHub Actions bot). No person wrote it.\n\n---\n\n'
+            if [ "$OUTCOME" = "patched" ]; then
+              cat result/report.md
+              printf '\n'
+              printf '**Download:** [%s](%s)\n\n' "$ZIP_NAME" "$ZIP_URL"
+              printf 'Each font inside the zip is renamed to `fontname-patched.ttf`.\n\n'
+              printf 'Download the zip and extract it. This workflow does not apply or flash anything on your device. Missing glyphs are filled with Roboto shapes. **Keep a backup or recovery method, as flashing a bad font can bootloop your phone.**\n\n'
+              printf '**Note:** The download link points to a file on a separate branch of the FontLib repository. That file may be deleted in the future to keep the repository small. **Please save the zip to your device now.**\n\n'
+              printf '**Note on ownership:** This font belongs to its original creator. This workflow only adds missing characters (glyphs) to the file and does not remove the author name, copyright, or license data. If you are the copyright holder and want this file removed, contact the maintainer.\n\n'
+            else
+              printf 'Your request could not be processed:\n\n'
+              sed 's/^REJECT://' result/log.txt
+              printf '\nThis request is now closed.\n\n'
+            fi
+            printf 'Need more fonts patched? [Open a new Font Patch Request](%s). Replies and attachments added after this reply are not picked up.\n\n' "$NEW_URL"
+            printf 'Something wrong? [Open a Problem Report](%s) and paste the line below into it.\n\n' "$PROBLEM_URL"
+            printf '%s\nPatch issue: #%s | Action run: #%s | %s/actions/runs/%s\n%s\n' "$F" "$ISSUE_NUMBER" "${{ github.run_number }}" "${{ github.server_url }}/${{ github.repository }}" "${{ github.run_id }}" "$F"
+          } > result/final.md
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file result/final.md
+          if [ "$OUTCOME" = "patched" ]; then
+            gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason "completed" || true
+          else
+            gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason "not planned" || true
+          fi
+
+      - name: Report Unexpected Failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GHTOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          F=$(printf '\140\140\140')
+          PROBLEM_URL="https://github.com/${GITHUB_REPOSITORY}/issues/new?template=problem-report.md"
+          {
+            printf '### 🤖 Automated reply: something went wrong\n\n'
+            printf 'This message was posted automatically by the Font Patch workflow (GitHub Actions bot). No person wrote it.\n\n'
+            printf 'The patch workflow hit an unexpected error and could not finish. A maintainer will look into it.\n\n'
+            printf 'You can check the run log here: %s\n\n' "$RUN_URL"
+            printf 'If the problem persists, [open a Problem Report](%s) and paste the line below:\n\n' "$PROBLEM_URL"
+            printf '%s\nPatch issue: #%s | Action run: %s | %s\n%s\n' "$F" "$ISSUE_NUMBER" "${{ github.run_number }}" "$RUN_URL" "$F"
+          } > result/error.md
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file result/error.md || true
+          gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason "not planned" || true
